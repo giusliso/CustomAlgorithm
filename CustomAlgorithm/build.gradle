@@ -1,0 +1,62 @@
+
+buildscript {
+    repositories {
+        // LensKit snapshots are published to the Sonatype snapshot repository
+        maven {
+            url 'https://oss.sonatype.org/content/repositories/snapshots/'
+        }
+        // LensKit releases are published to Maven Central
+        mavenCentral()
+    }
+    dependencies {
+        classpath 'org.grouplens.lenskit:lenskit-gradle:2.2'
+    }
+}
+
+
+apply plugin: 'java'
+apply plugin: 'lenskit'
+
+/* Configure LensKit */
+lenskit {
+    version '2.2'
+}
+
+import org.grouplens.lenskit.gradle.*
+
+/* Set up the repositories for getting LensKit and other libraries.
+ * These repositories are used for your Java or Groovy code, and for running LensKit.
+ */
+repositories {
+    maven {
+        url 'https://oss.sonatype.org/content/repositories/snapshots/'
+    }
+    mavenCentral()
+}
+
+configurations {
+    lenskit.extendsFrom runtime
+}
+
+dependencies {
+    compile "org.grouplens.lenskit:lenskit-all:$lenskit.version"
+    runtime "org.grouplens.lenskit:lenskit-cli:$lenskit.version"
+
+    testCompile "junit:junit:4.12"
+}
+
+
+
+/* Run the LensKit evaluation */
+task evaluate(type: LenskitEval, group: 'evaluate') {
+    description 'Runs the LensKit evaluation.'
+    dependsOn classes                           // perform java compilation before running this
+    script 'eval.groovy'                        // configure the name of the lenskit eval description
+
+    inputs.dir "dataset/ml-1m/"
+    outputs.files "results/eval-results.csv"
+	threadCount 4
+	maxMemory "12G"
+    classpath sourceSets.main.runtimeClasspath  // use the code we have here, plus its deps
+}
+
