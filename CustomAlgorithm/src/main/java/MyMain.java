@@ -70,7 +70,7 @@ public class MyMain {
 		System.out.println("Most popular LAST YEAR  = " + seedItemSet.getMostPopularItem(SeedItemSet.Period.LAST_YEAR));
 		System.out.println("Last Positively Rated   = " + seedItemSet.getLastPositivelyRatedItem());
 
-		new seed();
+		//new seed();
 		seedItemSet.getLastItemAddedNotRated();
 	}
 }
