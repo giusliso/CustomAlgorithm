@@ -42,10 +42,10 @@ public class MyMain {
 
 		List<ScoredId> recommendations1 = rec.getItemRecommender().recommend(12345, 10);
 		List<ScoredId> recommendations2 = rec.getItemRecommender().recommend(123234545, 10);
-		List<ScoredId> recommendations3 = rec.getItemRecommender().recommend(1, 10);
+		//List<ScoredId> recommendations3 = rec.getItemRecommender().recommend(1, 10);
 		System.out.println("\nCASO = 0\n"+ recommendations2);
 		System.out.println("\nCASO < 20\n"+ recommendations1);
-		System.out.println("\nCASO > 20\n"+ recommendations3);
+		//System.out.println("\nCASO > 20\n"+ recommendations3);
 		System.out.println("\n\nFine");
 	}
 
