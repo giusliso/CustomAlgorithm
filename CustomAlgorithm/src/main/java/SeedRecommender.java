@@ -56,7 +56,7 @@ public class SeedRecommender extends AbstractItemRecommender {
 
 		SeedItemSet set = new SeedItemSet(dao);
 		Set<Long> seeds = set.getSeedItemSet();
-
+		
 		for (Long seed : seeds)
 			recommendations.put(seed, meanRating.score(user, seed));
 
@@ -73,7 +73,7 @@ public class SeedRecommender extends AbstractItemRecommender {
 					for (Long i : neighbors.keysByValue(true)) {
 						if (i != item) {
 
-							if (seeds.contains(item)) {
+							if (set.getSeedItemSet().contains(item)) {
 								double ScoreSeed = meanRating.score(user, item);
 								double SimItem = neighbors.get(i);
 								double ScoreItem = ScoreSeed * SimItem;
