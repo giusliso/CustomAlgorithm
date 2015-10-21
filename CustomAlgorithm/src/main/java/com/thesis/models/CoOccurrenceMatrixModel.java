@@ -10,7 +10,9 @@ import org.grouplens.lenskit.vectors.SparseVector;
 
 import it.unimi.dsi.fastutil.longs.LongSortedSet;
 
-
+/**
+ * Co-occurrence model using an in-memory co-occurrence matrix.
+ */
 @DefaultProvider(CoOccurrenceMatrixModelBuilder.class)
 @Shareable
 public class CoOccurrenceMatrixModel implements Serializable, ItemItemModel {
