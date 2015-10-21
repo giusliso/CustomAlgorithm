@@ -10,7 +10,6 @@ import org.grouplens.lenskit.vectors.SparseVector;
 
 import it.unimi.dsi.fastutil.longs.LongSortedSet;
 
-
 /**
  * Co-occurrence model using an in-memory co-occurrence matrix.
  */

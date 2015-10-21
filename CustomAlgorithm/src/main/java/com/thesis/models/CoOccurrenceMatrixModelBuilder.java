@@ -23,7 +23,6 @@ import it.unimi.dsi.fastutil.longs.LongBidirectionalIterator;
 import it.unimi.dsi.fastutil.longs.LongSet;
 import it.unimi.dsi.fastutil.longs.LongSortedSet;
 
-
 /**
  * Build a co-occurrence model from rating data.
  */
