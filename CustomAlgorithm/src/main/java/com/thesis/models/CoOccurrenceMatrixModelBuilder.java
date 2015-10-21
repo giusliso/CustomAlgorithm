@@ -23,6 +23,7 @@ import it.unimi.dsi.fastutil.longs.LongBidirectionalIterator;
 import it.unimi.dsi.fastutil.longs.LongSet;
 import it.unimi.dsi.fastutil.longs.LongSortedSet;
 
+
 /**
  * Build a co-occurrence model from rating data.
  */
@@ -41,12 +42,13 @@ public class CoOccurrenceMatrixModelBuilder implements Provider<ItemItemModel> {
 
 	@Override
 	public ItemItemModel get() {
+
 		LongSortedSet allItems = context.getItems();
 		int nitems = allItems.size();
-		
+
 		logger.info("building item-item model for {} items", nitems);
 		logger.debug("co-occurrence function is symmetric");
-	
+
 		Long2ObjectMap<ScoredItemAccumulator> rows = makeAccumulators(allItems);
 
 		Stopwatch timer = Stopwatch.createStarted();
@@ -54,10 +56,10 @@ public class CoOccurrenceMatrixModelBuilder implements Provider<ItemItemModel> {
 		for(LongBidirectionalIterator itI = allItems.iterator(); itI.hasNext() ; ) {
 			Long i = itI.next();
 			SparseVector vecI = context.itemVector(i);
-			
+
 			if (logger.isDebugEnabled()) 
-	            logger.debug("computing co-occurrences for item {} ({} of {})", i, ndone, nitems);
-	        
+				logger.debug("computing co-occurrences for item {} ({} of {})", i, ndone, nitems);
+
 			for(LongBidirectionalIterator itJ = allItems.iterator(i); itJ.hasNext(); ) {
 				Long j = itJ.next();
 				SparseVector vecJ = context.itemVector(j);
@@ -65,33 +67,34 @@ public class CoOccurrenceMatrixModelBuilder implements Provider<ItemItemModel> {
 				rows.get(i).put(j, coOccurences);
 				rows.get(j).put(i, coOccurences);
 			}
-			
+
 			if (logger.isDebugEnabled() && ndone % 100 == 0) 
-                logger.debug("computed {} of {} model rows ({}s/row)", 
-                		ndone, nitems, 
-                		String.format("%.3f", timer.elapsed(TimeUnit.MILLISECONDS) * 0.001 / ndone));
-            
-			
+				logger.debug("computed {} of {} model rows ({}s/row)", 
+						ndone, nitems, 
+						String.format("%.3f", timer.elapsed(TimeUnit.MILLISECONDS) * 0.001 / ndone));
+
+
 			ndone++;
 		}
 		timer.stop();
-        logger.info("built model for {} items in {}", ndone, timer);
+		logger.info("built model for {} items in {}", ndone, timer);
 
 		return new CoOccurrenceMatrixModel(finishRows(rows));
 	}
 
-	
+
 	private Long2ObjectMap<ScoredItemAccumulator> makeAccumulators(LongSet items) {
-        Long2ObjectMap<ScoredItemAccumulator> rows = new Long2ObjectOpenHashMap<ScoredItemAccumulator>(items.size());
-        for(Long item : items)
-        	rows.put(item, new UnlimitedScoredItemAccumulator());       
-        return rows;
-    }
-	
+		Long2ObjectMap<ScoredItemAccumulator> rows = new Long2ObjectOpenHashMap<ScoredItemAccumulator>(items.size());
+		for(Long item : items)
+			rows.put(item, new UnlimitedScoredItemAccumulator());       
+		return rows;
+	}
+
+
 	private Long2ObjectMap<ImmutableSparseVector> finishRows(Long2ObjectMap<ScoredItemAccumulator> rows) {
-        Long2ObjectMap<ImmutableSparseVector> results = new Long2ObjectOpenHashMap<ImmutableSparseVector>(rows.size());
-        for (Long2ObjectMap.Entry<ScoredItemAccumulator> e: rows.long2ObjectEntrySet()) 
-            results.put(e.getLongKey(), e.getValue().finishVector().freeze());      
-        return results;
-    }
+		Long2ObjectMap<ImmutableSparseVector> results = new Long2ObjectOpenHashMap<ImmutableSparseVector>(rows.size());
+		for (Long2ObjectMap.Entry<ScoredItemAccumulator> e: rows.long2ObjectEntrySet()) 
+			results.put(e.getLongKey(), e.getValue().finishVector().freeze());      
+		return results;
+	}
 }
