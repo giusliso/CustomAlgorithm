@@ -19,7 +19,7 @@ public class SeedItemSet {
 
 	public static enum Period {LAST_WEEK, LAST_MONTH, LAST_YEAR, EVER};
 
-
+	private HashSet<Long> set;
 	private ItemEventDAO iedao;
 	private ItemDAO idao;
 	private EventDAO dao;
@@ -28,24 +28,30 @@ public class SeedItemSet {
 		this.iedao = dataset.getItemEventDAO();
 		this.idao = dataset.getItemDAO();
 		this.dao = dataset.getEventDAO();
+		this.set = new HashSet<Long>();
+		find();
 	}
 
 	public SeedItemSet(EventDAO dao) {
 		this.iedao = new PrefetchingItemEventDAO(dao);
 		this.idao = new PrefetchingItemDAO(dao);
 		this.dao = dao;
+		this.set = new HashSet<Long>();
+		find();
 	}
 	
-	public Set<Long> getSeedItemSet() {
-		HashSet<Long> set = new HashSet<Long>();
+	private void find() {
 		set.add(getMostPopularItem(Period.EVER));
 		set.add(getMostPopularItem(Period.LAST_WEEK));
 		set.add(getLastPositivelyRatedItem());
 		set.add(getLastItemAddedNotRated());
+	}
+	
+	public Set<Long> getSeedItemSet() {
 		return set;
 	}
 	
-	public Long getMostPopularItem(Period period) {
+	private Long getMostPopularItem(Period period) {
 		Calendar cal = Calendar.getInstance();
 		cal.setTime(getLastTimestamp()); // perchè i rating nel dataset, a quanto pare, vanno dal26/04/2000 al 28/02/2003
 
@@ -109,7 +115,7 @@ public class SeedItemSet {
 
 
 
-	public Long getLastPositivelyRatedItem(){
+	private Long getLastPositivelyRatedItem(){
 		Long lastPositivelyRatedItem = null;
 		Date recentDate = getFirstTimestamp(); 
 
@@ -142,7 +148,7 @@ public class SeedItemSet {
 
 
 	
-	public Long getLastItemAddedNotRated(){
+	private Long getLastItemAddedNotRated(){
 		Long lastItemAdded = null;
 		Date threshold = null;
 		

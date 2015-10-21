@@ -1,7 +1,8 @@
 import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
-import java.util.Stack;
 
 import javax.inject.Inject;
 
@@ -20,8 +21,9 @@ import org.grouplens.lenskit.knn.item.model.SimilarityMatrixModel;
 import org.grouplens.lenskit.scored.ScoredId;
 import org.grouplens.lenskit.util.ScoredItemAccumulator;
 import org.grouplens.lenskit.util.TopNScoredItemAccumulator;
-import org.grouplens.lenskit.util.UnlimitedScoredItemAccumulator;
 import org.grouplens.lenskit.vectors.SparseVector;
+
+import it.unimi.dsi.fastutil.longs.Long2DoubleArrayMap;
 import it.unimi.dsi.fastutil.longs.LongSet;
 import it.unimi.dsi.fastutil.longs.LongSets;
 
@@ -32,80 +34,73 @@ public class SeedRecommender extends AbstractItemRecommender {
 	private ItemDAO idao;
 	private ItemScorer scorer;
 	private ItemItemModel model;
-	private ItemMeanRatingItemScorer meanRating;
-	private ArrayList<SimilarityMatrixModel> models;
+
+	private ArrayList<ItemItemModel> models;
 
 	@Inject
-	public SeedRecommender(EventDAO dao, UserEventDAO uedao, ItemDAO idao, ItemScorer scorer, ItemItemModel model,
-			ItemMeanRatingItemScorer meanRating) {
+	public SeedRecommender(EventDAO dao, UserEventDAO uedao, ItemDAO idao, ItemScorer scorer, ItemItemModel model) {
 		this.uedao = uedao;
 		this.idao = idao;
 		this.dao = dao;
 		this.scorer = scorer;
 		this.model = model;
-		this.meanRating = meanRating;
-		models = new ArrayList<SimilarityMatrixModel>();
+
+		models = new ArrayList<ItemItemModel>();
 		models.add((SimilarityMatrixModel) model);
 	}
 
 	@Override
 	protected List<ScoredId> recommend(long user, int n, LongSet candidates, LongSet excludes) {
-		candidates = getEffectiveCandidates(user, candidates, excludes);
 
-		ScoredItemAccumulator recommendations = new UnlimitedScoredItemAccumulator();
+		ScoredItemAccumulator recommendations = new TopNScoredItemAccumulator(n);
 
-		SeedItemSet set = new SeedItemSet(dao);
-		Set<Long> seeds = set.getSeedItemSet();
-		
-		for (Long seed : seeds)
-			recommendations.put(seed, meanRating.score(user, seed));
-
+		Long2DoubleArrayMap seedMap = new Long2DoubleArrayMap();
 		UserHistory<Rating> userHistory = uedao.getEventsForUser(user, Rating.class);
-		if (userHistory != null)
-			for (Rating rating : userHistory)
-				seeds.add(rating.getItemId());
-
-		for (Long item : seeds) {
-			for (SimilarityMatrixModel sModel : models) {
-				SparseVector neighbors = sModel.getNeighbors(item);
-
-				if (!neighbors.isEmpty()) {
-					for (Long i : neighbors.keysByValue(true)) {
-						if (i != item) {
-
-							if (set.getSeedItemSet().contains(item)) {
-								double ScoreSeed = meanRating.score(user, item);
-								double SimItem = neighbors.get(i);
-								double ScoreItem = ScoreSeed * SimItem;
-								recommendations.put(i, ScoreItem);
-							} else
-								recommendations.put(i, scorer.score(user, i));
-							break;
-						}
-					}
-				}
+		Set<Long> seeds = new HashSet<Long>();
+		
+		if(userHistory == null || userHistory.size() < 20) {
+			SeedItemSet set = new SeedItemSet(dao);
+			seeds.addAll(set.getSeedItemSet());
+			
+			for (long seed : seeds) {
+				double score = scorer.score(user, seed);
+				seedMap.put(seed, score);
+				System.out.println("Seed="+seed+ "\tScore="+score); // ----------------
+				recommendations.put(seed, score);
 			}
 		}
+
+		if (userHistory != null)
+			for (Rating rating : userHistory){
+				seeds.add(rating.getItemId());
+				seedMap.put(rating.getItemId(), rating.getValue());
+			}
+
+		for (Long s : seeds) 
+			for (ItemItemModel sModel : models) {
+				SparseVector neighbors = sModel.getNeighbors(s);
+				if (!neighbors.isEmpty()) 
+					for (Long i : neighbors.keysByValue(true))
+						if (i != s && !seeds.contains(i)) {
+							double simISnorm = normalize(-1, 1, neighbors.get(i), 0, 1);
+							double scoreSeed = seedMap.get(s);
+							recommendations.put(i, simISnorm*scoreSeed);
+							break;
+						}
+			}
 
 		return recommendations.finish();
 	}
 
-	private LongSet getEffectiveCandidates(long user, LongSet candidates, LongSet exclude) {
-		if (candidates == null)
-			candidates = idao.getItemIds();
 
-		if (exclude == null) {
-			UserHistory<Event> userRatings = uedao.getEventsForUser(user);
-			exclude = (userRatings == null) ? LongSets.EMPTY_SET : userRatings.itemSet();
-		}
-
-		if (!exclude.isEmpty()) {
-			candidates = LongUtils.setDifference(candidates, exclude);
-		}
-		return candidates;
+	private double normalize(double oldMin, double oldMax, double oldVal, double newMin, double newMax) {
+		double scale = (newMax-newMin)/(oldMax-oldMin);
+		return newMin + ( (oldVal-oldMin) * scale );
 	}
 
-	protected LongSet getPredictableItems(long user) {
-		return idao.getItemIds();
+
+	public void addModel(ItemItemModel model){
+		models.add(model);
 	}
+
 }
