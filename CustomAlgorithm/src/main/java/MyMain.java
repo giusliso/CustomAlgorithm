@@ -4,7 +4,6 @@ import java.util.List;
 import org.grouplens.lenskit.ItemRecommender;
 import org.grouplens.lenskit.ItemScorer;
 import org.grouplens.lenskit.RecommenderBuildException;
-import org.grouplens.lenskit.baseline.BaselineScorer;
 import org.grouplens.lenskit.baseline.ItemMeanRatingItemScorer;
 import org.grouplens.lenskit.baseline.UserMeanBaseline;
 import org.grouplens.lenskit.baseline.UserMeanItemScorer;
@@ -14,11 +13,9 @@ import org.grouplens.lenskit.data.dao.EventDAO;
 import org.grouplens.lenskit.data.pref.PreferenceDomain;
 import org.grouplens.lenskit.data.source.CSVDataSourceBuilder;
 import org.grouplens.lenskit.data.source.DataSource;
-import org.grouplens.lenskit.knn.item.ItemItemScorer;
-import org.grouplens.lenskit.knn.item.ItemSimilarity;
+import org.grouplens.lenskit.knn.item.model.ItemItemModel;
 import org.grouplens.lenskit.scored.ScoredId;
-import org.grouplens.lenskit.vectors.similarity.CosineVectorSimilarity;
-import org.grouplens.lenskit.vectors.similarity.VectorSimilarity;
+import com.thesis.models.CoOccurrenceMatrixModel;
 
 
 
@@ -26,7 +23,7 @@ public class MyMain {
 
 	public static void main(String[] args) throws RecommenderBuildException {
 
-		CSVDataSourceBuilder dataset = new  CSVDataSourceBuilder(new File("data/ml-1m/ratings.dat"));
+		CSVDataSourceBuilder dataset = new  CSVDataSourceBuilder(new File("data/mydata.dat"));
 		dataset.setDelimiter("::");
 		dataset.setDomain(new PreferenceDomain(1,5,1));
 		DataSource data = dataset.build();
@@ -35,8 +32,10 @@ public class MyMain {
 		config.bind(EventDAO.class).to(data.getEventDAO());
 		config.bind(ItemScorer.class).to(UserMeanItemScorer.class);
 		config.bind(UserMeanBaseline.class, ItemScorer.class).to(ItemMeanRatingItemScorer.class);
+		config.bind(ItemItemModel.class).to(CoOccurrenceMatrixModel.class);
 		config.bind(ItemRecommender.class).to(SeedRecommender.class);
-		config.within(ItemSimilarity.class).bind(VectorSimilarity.class).to(CosineVectorSimilarity.class);
+		
+//		config.within(ItemSimilarity.class).bind(VectorSimilarity.class).to(CosineVectorSimilarity.class);
 		
 		LenskitRecommender rec = LenskitRecommender.build(config);
 
