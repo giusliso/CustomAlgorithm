@@ -53,7 +53,7 @@ public class SeedItemSet {
 	
 	private Long getMostPopularItem(Period period) {
 		Calendar cal = Calendar.getInstance();
-		cal.setTime(getLastTimestamp()); // perchè i rating nel dataset, a quanto pare, vanno dal26/04/2000 al 28/02/2003
+		cal.setTime(getLastTimestamp()); // perchè i rating nel dataset, a quanto pare, vanno dal 26/04/2000 al 28/02/2003
 
 		Date thresholdDate = null;
 		switch (period) {
@@ -122,7 +122,7 @@ public class SeedItemSet {
 		for(Long itemId : idao.getItemIds()){
 			List<Rating> ratings = iedao.getEventsForItem(itemId, Rating.class);
 			int threshold = getPositiveRatingThreshold(ratings);
-			Date date = new Date(0, 0, 1, 0, 0); //inizializzata al 01/01/1900
+			Date date = getFirstTimestamp();
 
 			for(Rating rating : ratings){
 				Date dateR = new Date(rating.getTimestamp()*1000);
