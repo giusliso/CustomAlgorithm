@@ -7,11 +7,10 @@ import org.grouplens.lenskit.core.Shareable;
 import org.grouplens.lenskit.knn.item.model.ItemItemModel;
 import org.grouplens.lenskit.vectors.ImmutableSparseVector;
 import org.grouplens.lenskit.vectors.SparseVector;
-
 import it.unimi.dsi.fastutil.longs.LongSortedSet;
 
 /**
- * Co-occurrence model using an in-memory co-occurrence matrix.
+ * Co-occurrence model using a normalized in-memory co-occurrence matrix.
  */
 @DefaultProvider(CoOccurrenceMatrixModelBuilder.class)
 @Shareable
@@ -19,7 +18,6 @@ public class CoOccurrenceMatrixModel implements Serializable, ItemItemModel {
 	private static final long serialVersionUID = 1L;
 
 	private final Map<Long,ImmutableSparseVector> model;
-
 
 	public CoOccurrenceMatrixModel(Map<Long,ImmutableSparseVector> nbrs) {
 		model = nbrs;
@@ -31,7 +29,7 @@ public class CoOccurrenceMatrixModel implements Serializable, ItemItemModel {
 		return LongUtils.packedSet(model.keySet());
 	}
 
-	
+
 	@Override
 	public SparseVector getNeighbors(long item) {
 		if (model.containsKey(item))
@@ -39,5 +37,6 @@ public class CoOccurrenceMatrixModel implements Serializable, ItemItemModel {
 		else
 			return ImmutableSparseVector.empty();
 	}
+
 
 }

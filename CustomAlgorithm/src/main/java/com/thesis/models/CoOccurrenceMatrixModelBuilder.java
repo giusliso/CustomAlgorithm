@@ -8,6 +8,7 @@ import javax.inject.Provider;
 import org.grouplens.lenskit.core.Transient;
 import org.grouplens.lenskit.knn.item.model.ItemItemBuildContext;
 import org.grouplens.lenskit.knn.item.model.ItemItemModel;
+import org.grouplens.lenskit.scored.ScoredId;
 import org.grouplens.lenskit.util.ScoredItemAccumulator;
 import org.grouplens.lenskit.util.UnlimitedScoredItemAccumulator;
 import org.grouplens.lenskit.vectors.ImmutableSparseVector;
@@ -24,7 +25,7 @@ import it.unimi.dsi.fastutil.longs.LongSet;
 import it.unimi.dsi.fastutil.longs.LongSortedSet;
 
 /**
- * Build a co-occurrence model from rating data.
+ * Build a co-occurrence model from rating data and normalize it (co-occurrence / max).
  */
 @NotThreadSafe
 public class CoOccurrenceMatrixModelBuilder implements Provider<ItemItemModel> {
@@ -41,7 +42,8 @@ public class CoOccurrenceMatrixModelBuilder implements Provider<ItemItemModel> {
 
 	@Override
 	public ItemItemModel get() {
-
+		int max = 0;
+		
 		LongSortedSet allItems = context.getItems();
 		int nitems = allItems.size();
 
@@ -65,6 +67,9 @@ public class CoOccurrenceMatrixModelBuilder implements Provider<ItemItemModel> {
 				int coOccurences = vecJ.countCommonKeys(vecI);
 				rows.get(i).put(j, coOccurences);
 				rows.get(j).put(i, coOccurences);
+				
+				if(coOccurences > max)
+					max=coOccurences;
 			}
 
 			if (logger.isDebugEnabled() && ndone % 100 == 0) 
@@ -72,9 +77,20 @@ public class CoOccurrenceMatrixModelBuilder implements Provider<ItemItemModel> {
 						ndone, nitems, 
 						String.format("%.3f", timer.elapsed(TimeUnit.MILLISECONDS) * 0.001 / ndone));
 
-
 			ndone++;
 		}
+		
+		logger.info("max co-occurrence value = {}", max);
+		logger.info("normalizing item-item model");
+		
+		for(Long i : rows.keySet()){
+			ScoredItemAccumulator acc = new UnlimitedScoredItemAccumulator();			
+			for( ScoredId val : rows.get(i).finish())
+				acc.put(val.getId(), val.getScore()/max);					
+			rows.put(i, acc);
+		}
+		 		
+		logger.info("normalized item-item model");		
 		timer.stop();
 		logger.info("built model for {} items in {}", ndone, timer);
 
