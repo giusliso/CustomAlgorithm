@@ -1,4 +1,5 @@
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
 
@@ -7,6 +8,7 @@ import org.grouplens.lenskit.ItemScorer;
 import org.grouplens.lenskit.basic.AbstractItemRecommender;
 import org.grouplens.lenskit.data.dao.EventDAO;
 import org.grouplens.lenskit.data.dao.UserEventDAO;
+import org.grouplens.lenskit.data.event.Event;
 import org.grouplens.lenskit.data.event.Rating;
 import org.grouplens.lenskit.data.history.UserHistory;
 import org.grouplens.lenskit.knn.item.model.ItemItemModel;
@@ -79,6 +81,19 @@ public class SeedRecommender extends AbstractItemRecommender {
 	private double normalize(double oldMin, double oldMax, double oldVal, double newMin, double newMax) {
 		double scale = (newMax-newMin)/(oldMax-oldMin);
 		return newMin + ( (oldVal-oldMin) * scale );
+	}
+	
+	private double meanValue(int user){
+		
+		UserHistory<Event> userHistory = uedao.getEventsForUser(user);
+		Iterator it = userHistory.iterator();
+		Double sum=0.0;
+	    while (it.hasNext()) {
+	        Rating rate = (Rating)it.next();
+		    sum=sum+rate.getValue();
+		  
+		}
+		return sum;
 	}
 
 
