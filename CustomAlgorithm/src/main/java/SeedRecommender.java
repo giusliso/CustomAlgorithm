@@ -26,6 +26,7 @@ public class SeedRecommender extends AbstractItemRecommender {
 	private UserEventDAO uedao;
 	private ItemScorer scorer;
 	private ItemItemModel model;
+	private Itemset it;
 
 	@Inject
 	public SeedRecommender(EventDAO dao, UserEventDAO uedao, ItemScorer scorer, ItemItemModel model) {
@@ -33,6 +34,8 @@ public class SeedRecommender extends AbstractItemRecommender {
 		this.dao = dao;
 		this.scorer = scorer;
 		this.model = model;
+	
+		
 	}
 
 	@Override
@@ -93,7 +96,7 @@ public class SeedRecommender extends AbstractItemRecommender {
 		    sum=sum+rate.getValue();
 		  
 		}
-		return sum;
+		return sum/userHistory.size();
 	}
 
 
