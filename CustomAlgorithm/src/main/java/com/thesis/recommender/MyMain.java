@@ -1,3 +1,4 @@
+package com.thesis.recommender;
 import java.io.File;
 import java.util.List;
 
@@ -19,6 +20,10 @@ import org.grouplens.lenskit.scored.ScoredId;
 import org.grouplens.lenskit.vectors.similarity.CosineVectorSimilarity;
 import org.grouplens.lenskit.vectors.similarity.VectorSimilarity;
 
+import com.thesis.models.CoOccurrenceMatrixModel;
+import com.thesis.qualifiers.CoOccurrenceModel;
+import com.thesis.qualifiers.CosineSimilarityModel;
+
 
 
 public class MyMain {
@@ -26,8 +31,10 @@ public class MyMain {
 	public static void main(String[] args) throws RecommenderBuildException {
 
 		// load data
-		CSVDataSourceBuilder dataset = new  CSVDataSourceBuilder(new File("data/ratings.dat"));
-		dataset.setDelimiter("::");
+//		CSVDataSourceBuilder dataset = new  CSVDataSourceBuilder(new File("data/mydata.dat"));
+//		dataset.setDelimiter("::");
+		CSVDataSourceBuilder dataset = new  CSVDataSourceBuilder(new File("data/u.data"));
+		dataset.setDelimiter("\t");
 		dataset.setDomain(new PreferenceDomain(1,5,1));
 		DataSource data = dataset.build();
 
@@ -37,11 +44,15 @@ public class MyMain {
 		// data
 		config.bind(EventDAO.class).to(data.getEventDAO());
 
-		// scorer to score items
+		// scorer
 		config.bind(ItemScorer.class).to(UserMeanItemScorer.class);
 		config.bind(UserMeanBaseline.class, ItemScorer.class).to(ItemMeanRatingItemScorer.class);
 		
-		// model
+		// models
+//		config.bind(CoOccurrenceModel.class, ItemItemModel.class).to(CoOccurrenceMatrixModel.class);
+//	
+//		config.bind(CosineSimilarityModel.class, ItemItemModel.class).to(SimilarityMatrixModel.class);
+//		config.within(CosineSimilarityModel.class, ItemItemModel.class).bind(VectorSimilarity.class).to(CosineVectorSimilarity.class);
 		config.bind(ItemItemModel.class).to(SimilarityMatrixModel.class);
 		config.bind(VectorSimilarity.class).to(CosineVectorSimilarity.class);
 		
@@ -51,9 +62,9 @@ public class MyMain {
 		// --- RECOMMENDATIONS
 		LenskitRecommender rec = LenskitRecommender.build(config);
 
-		List<ScoredId> recommendations1 = rec.getItemRecommender().recommend(123234545, 10);
-		List<ScoredId> recommendations2 = rec.getItemRecommender().recommend(12345, 10);
-		List<ScoredId> recommendations3 = rec.getItemRecommender().recommend(1, 10);
+		List<ScoredId> recommendations1 = rec.getItemRecommender().recommend(123234545, 5);
+		List<ScoredId> recommendations2 = rec.getItemRecommender().recommend(12345, 5);
+		List<ScoredId> recommendations3 = rec.getItemRecommender().recommend(1, 5);
 
 		System.out.println("\nCASO = 0\n"+ recommendations1);
 		System.out.println("\nCASO < 20\n"+ recommendations2);
