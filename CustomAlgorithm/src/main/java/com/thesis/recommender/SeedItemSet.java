@@ -1,3 +1,4 @@
+package com.thesis.recommender;
 import java.util.Calendar;
 import java.util.Date;
 import java.util.HashSet;
@@ -15,6 +16,18 @@ import org.grouplens.lenskit.data.event.Event;
 import org.grouplens.lenskit.data.event.Rating;
 import org.grouplens.lenskit.data.source.DataSource;
 
+/**
+ * A class to retrieve the standard seed items set. 
+ * i1 ← the most popular item, i.e. the item with the greatest number of ratings 
+ * 
+ * i2 ← the most recently added item not rated yet (new item in the platform)
+ * 
+ * i3 ← the last positively rated item (the last item added in the platform rated in a positive way)
+ * 
+ * i4 ← the most popular item in a certain period of time (last week/month/year)
+ * 
+ * An item is "positive rated" if its rate is equals or greater than the global mean of all ratings.
+ */
 public class SeedItemSet {
 
 	public static enum Period {LAST_WEEK, LAST_MONTH, LAST_YEAR, EVER};
@@ -23,6 +36,9 @@ public class SeedItemSet {
 	private ItemEventDAO iedao;
 	private ItemDAO idao;
 	private EventDAO dao;
+
+	private Date firstTimestamp = null;
+	private Date lastTimestamp = null;
 
 	public SeedItemSet(DataSource dataset) {
 		this.iedao = dataset.getItemEventDAO();
@@ -39,21 +55,21 @@ public class SeedItemSet {
 		this.set = new HashSet<Long>();
 		find();
 	}
-	
+
 	private void find() {
 		set.add(getMostPopularItem(Period.EVER));
 		set.add(getMostPopularItem(Period.LAST_WEEK));
 		set.add(getLastPositivelyRatedItem());
 		set.add(getLastItemAddedNotRated());
 	}
-	
+
 	public Set<Long> getSeedItemSet() {
 		return set;
 	}
-	
+
 	private Long getMostPopularItem(Period period) {
 		Calendar cal = Calendar.getInstance();
-		cal.setTime(getLastTimestamp()); // perchè i rating nel dataset, a quanto pare, vanno dal 26/04/2000 al 28/02/2003
+		cal.setTime(getLastTimestamp()); 
 
 		Date thresholdDate = null;
 		switch (period) {
@@ -93,23 +109,29 @@ public class SeedItemSet {
 
 	private Date getFirstTimestamp(){
 
-		Cursor<Rating> events = dao.streamEvents(Rating.class, SortOrder.TIMESTAMP);
+		if(firstTimestamp == null){
+			Cursor<Rating> events = dao.streamEvents(Rating.class, SortOrder.TIMESTAMP);
 
-		for(Rating rating : events)
-			return new Date(rating.getTimestamp()*1000);			
-
-		return null;
+			for(Rating rating : events){
+				firstTimestamp = new Date(rating.getTimestamp()*1000);
+				return firstTimestamp;	
+			}
+		}
+		return firstTimestamp;
 	}
 
 	private Date getLastTimestamp(){
 
-		Cursor<Rating> events = dao.streamEvents(Rating.class, SortOrder.TIMESTAMP);
+		if(lastTimestamp == null){
+			Cursor<Rating> events = dao.streamEvents(Rating.class, SortOrder.TIMESTAMP);
 
-		long lastTimestamp=0;
-		for(Rating rating : events){
-			lastTimestamp = rating.getTimestamp();			
+			long lastTimestampTemp=0;
+			for(Rating rating : events)
+				lastTimestampTemp = rating.getTimestamp();			
+			
+			lastTimestamp = new Date(lastTimestampTemp*1000);
 		}
-		return new Date(lastTimestamp*1000);
+		return lastTimestamp;
 	}
 
 
@@ -147,11 +169,11 @@ public class SeedItemSet {
 	}
 
 
-	
+
 	private Long getLastItemAddedNotRated(){
 		Long lastItemAdded = null;
 		Date threshold = null;
-		
+
 		for(Long itemId : idao.getItemIds()){
 			List<Rating> ratings = iedao.getEventsForItem(itemId, Rating.class);
 			Date firstTimestamp=new Date(ratings.get(0).getTimestamp()*1000);
@@ -159,19 +181,19 @@ public class SeedItemSet {
 				threshold = firstTimestamp;
 				lastItemAdded=itemId;
 			}
-			
+
 			for(Rating r : ratings){
 				Date timestamp = new Date(r.getTimestamp()*1000);
 				if(timestamp.before(firstTimestamp))
 					firstTimestamp = timestamp;
 			}
-			
+
 			if(firstTimestamp.after(threshold)){
 				threshold=firstTimestamp;
 				lastItemAdded=itemId;
 			}
 		}
-		
+
 
 		return lastItemAdded;
 	}

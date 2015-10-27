@@ -1,3 +1,4 @@
+package com.thesis.recommender;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
@@ -26,7 +27,7 @@ public class SeedRecommender extends AbstractItemRecommender {
 	private UserEventDAO uedao;
 	private ItemScorer scorer;
 	private ItemItemModel model;
-	private Itemset it;
+
 
 	@Inject
 	public SeedRecommender(EventDAO dao, UserEventDAO uedao, ItemScorer scorer, ItemItemModel model) {

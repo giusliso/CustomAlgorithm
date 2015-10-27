@@ -1,4 +1,5 @@
 package com.thesis.recommender;
+
 import java.io.File;
 import java.util.List;
 
@@ -20,9 +21,7 @@ import org.grouplens.lenskit.scored.ScoredId;
 import org.grouplens.lenskit.vectors.similarity.CosineVectorSimilarity;
 import org.grouplens.lenskit.vectors.similarity.VectorSimilarity;
 
-import com.thesis.models.CoOccurrenceMatrixModel;
-import com.thesis.qualifiers.CoOccurrenceModel;
-import com.thesis.qualifiers.CosineSimilarityModel;
+
 
 
 
