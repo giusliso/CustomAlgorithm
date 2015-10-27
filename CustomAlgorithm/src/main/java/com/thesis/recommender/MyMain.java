@@ -1,5 +1,4 @@
 package com.thesis.recommender;
-
 import java.io.File;
 import java.util.List;
 
@@ -21,7 +20,9 @@ import org.grouplens.lenskit.scored.ScoredId;
 import org.grouplens.lenskit.vectors.similarity.CosineVectorSimilarity;
 import org.grouplens.lenskit.vectors.similarity.VectorSimilarity;
 
-
+import com.thesis.models.CoOccurrenceMatrixModel;
+import com.thesis.qualifiers.CoOccurrenceModel;
+import com.thesis.qualifiers.CosineSimilarityModel;
 
 
 
@@ -48,12 +49,12 @@ public class MyMain {
 		config.bind(UserMeanBaseline.class, ItemScorer.class).to(ItemMeanRatingItemScorer.class);
 		
 		// models
-//		config.bind(CoOccurrenceModel.class, ItemItemModel.class).to(CoOccurrenceMatrixModel.class);
-//	
-//		config.bind(CosineSimilarityModel.class, ItemItemModel.class).to(SimilarityMatrixModel.class);
-//		config.within(CosineSimilarityModel.class, ItemItemModel.class).bind(VectorSimilarity.class).to(CosineVectorSimilarity.class);
-		config.bind(ItemItemModel.class).to(SimilarityMatrixModel.class);
-		config.bind(VectorSimilarity.class).to(CosineVectorSimilarity.class);
+		config.bind(CoOccurrenceModel.class, ItemItemModel.class).to(CoOccurrenceMatrixModel.class);
+		config.bind(CosineSimilarityModel.class, ItemItemModel.class).to(SimilarityMatrixModel.class);
+		config.within(CosineSimilarityModel.class, ItemItemModel.class).bind(VectorSimilarity.class).to(CosineVectorSimilarity.class);
+		
+//		config.bind(ItemItemModel.class).to(SimilarityMatrixModel.class);
+//		config.bind(VectorSimilarity.class).to(CosineVectorSimilarity.class);
 		
 		// recommender
 		config.bind(ItemRecommender.class).to(SeedRecommender.class);
@@ -61,15 +62,14 @@ public class MyMain {
 		// --- RECOMMENDATIONS
 		LenskitRecommender rec = LenskitRecommender.build(config);
 
-		List<ScoredId> recommendations1 = rec.getItemRecommender().recommend(123234545, 5);
-		List<ScoredId> recommendations2 = rec.getItemRecommender().recommend(12345, 5);
-		List<ScoredId> recommendations3 = rec.getItemRecommender().recommend(1, 5);
+		List<ScoredId> recommendations1 = ((SeedRecommender) rec.getItemRecommender()).get_recommendation_list(12345, 10, true);
+//		List<ScoredId> recommendations2 = rec.getItemRecommender().recommend(12345, 5);
+//		List<ScoredId> recommendations3 = rec.getItemRecommender().recommend(1, 5);
 
 		System.out.println("\nCASO = 0\n"+ recommendations1);
-		System.out.println("\nCASO < 20\n"+ recommendations2);
-		System.out.println("\nCASO >= 20\n"+ recommendations3);
+//		System.out.println("\nCASO < 20\n"+ recommendations2);
+//		System.out.println("\nCASO >= 20\n"+ recommendations3);
 		System.out.println("\n\nFine");
 
 	}
-
 }
