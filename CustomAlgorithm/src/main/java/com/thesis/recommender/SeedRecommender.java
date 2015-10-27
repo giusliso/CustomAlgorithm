@@ -281,6 +281,7 @@ public class SeedRecommender extends AbstractItemRecommender {
 	 * @param n NUMERO RACCOMANDAZIONI
 	 * @return List<ScoredId> LISTA RACCOMANDAZIONI
 	 */
+	
 	public List<ScoredId> get_recommendation_list(int n){
 		long user=-1; 
 		this.activate_standard_seed=true;
