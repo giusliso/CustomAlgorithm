@@ -120,12 +120,14 @@ public class SeedRecommender extends AbstractItemRecommender {
 		}
 
 		int k=0;
-		while(recItemsSet.size() < n) {
+		int neighsSize = Integer.MAX_VALUE;
+		while(k<neighsSize && recItemsSet.size() < n) {
 			for (Long s : seedMap.keySet()){
 				Set<Integer> matIdsSet = models.modelsIdSet();
 				for(Integer matID : matIdsSet) {
 					ItemItemModel model = models.getModel(matID);
 					SparseVector neighbors = model.getNeighbors(s);
+					neighsSize = neighbors.size();
 					if (!neighbors.isEmpty()){
 						LongArrayList neighs = neighbors.keysByValue(true);
 						Long i = neighs.get(k);
