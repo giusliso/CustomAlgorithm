@@ -1,9 +1,7 @@
 package com.thesis.recommender;
 
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Set;
@@ -11,11 +9,9 @@ import java.util.TreeSet;
 
 import javax.inject.Inject;
 import org.grouplens.lenskit.ItemScorer;
-import org.grouplens.lenskit.baseline.UserMeanItemScorer;
 import org.grouplens.lenskit.basic.AbstractItemRecommender;
 import org.grouplens.lenskit.data.dao.EventDAO;
 import org.grouplens.lenskit.data.dao.UserEventDAO;
-import org.grouplens.lenskit.data.event.Event;
 import org.grouplens.lenskit.data.event.Rating;
 import org.grouplens.lenskit.data.history.UserHistory;
 import org.grouplens.lenskit.knn.item.model.ItemItemModel;
@@ -42,7 +38,7 @@ public class SeedRecommender extends AbstractItemRecommender {
 	private UserEventDAO uedao;
 	private ItemScorer scorer;
 	private boolean activate_standard_seed = true;
-	private HashMap<Integer, ModelTriple> models;
+	private ModelsManager models;
 	private Set<Long> seed_itemset;
 
 	@Inject
@@ -51,9 +47,9 @@ public class SeedRecommender extends AbstractItemRecommender {
 		this.uedao = uedao;
 		this.dao = dao;
 		this.scorer = scorer;
-		this.models= new HashMap<Integer,ModelTriple>();
-		this.models.put(models.size(), new ModelTriple(coOccModel, 1.0));
-		this.models.put(models.size(), new ModelTriple(cosModel, 1.0));
+		this.models = new ModelsManager();
+		this.models.addModel(cosModel, 1.0);
+		this.models.addModel(coOccModel, 1.0);
 	}
 
 	@Override
@@ -125,16 +121,18 @@ public class SeedRecommender extends AbstractItemRecommender {
 
 		int k=0;
 		while(recItemsSet.size() < n) {
-			for (Long s : seedMap.keySet())
-				for(Integer matID : models.keySet()) {
-					SparseVector neighbors = models.get(matID).getModel().getNeighbors(s);
+			for (Long s : seedMap.keySet()){
+				Set<Integer> matIdsSet = models.modelsIdSet();
+				for(Integer matID : matIdsSet) {
+					ItemItemModel model = models.getModel(matID);
+					SparseVector neighbors = model.getNeighbors(s);
 					if (!neighbors.isEmpty()){
 						LongArrayList neighs = neighbors.keysByValue(true);
 						Long i = neighs.get(k);
 						if (!seedMap.containsKey(i) ) {
 
 							double simISnorm = normalize(-1, 1, neighbors.get(i), 0, 1); /// SISTEMARE...............................................
-							if(models.get(matID).getModel() instanceof CoOccurrenceMatrixModel)
+							if(model instanceof CoOccurrenceMatrixModel)
 								simISnorm = neighbors.get(i);
 
 							double scoreSeed = seedMap.get(s);
@@ -143,6 +141,7 @@ public class SeedRecommender extends AbstractItemRecommender {
 						}
 					}
 				}
+			}
 			k++;
 		}
 
@@ -190,7 +189,7 @@ public class SeedRecommender extends AbstractItemRecommender {
 			for(RecommendationTriple i : unsortedMap.get(item)){
 				double si = i.getScore();
 				int mat = i.getMatID();
-				double wm = (mat == -1) ? 1 : models.get(mat).getWeight();
+				double wm = (mat == -1) ? 1 : models.getModelWeight(mat);
 				totWm += wm;
 				score += si*wm;
 			}
