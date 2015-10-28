@@ -63,46 +63,48 @@ public class SeedRecommender extends AbstractItemRecommender {
 
 		Long2DoubleArrayMap seedMap = new Long2DoubleArrayMap();
 		UserHistory<Rating> userHistory = uedao.getEventsForUser(user, Rating.class);
-		Set<Long> seeds = new HashSet<Long>();
 
 
 		if(userHistory == null || userHistory.size() < 20) {
-			//situazione cold start
+			// COLD START PROBLEM
 
-			if(this.activate_standard_seed){
+			if(this.activate_standard_seed) {
 				SeedItemSet set = new SeedItemSet(dao);
-				seeds.addAll(set.getSeedItemSet());	
 
-				for (long seed : seeds) {
+				for (long seed : set.getSeedItemSet()) {
 					double score = scorer.score(user, seed);
 					seedMap.put(seed, score);	
-					reclist.add(new RecommendationTriple(seed, score, -1)); 
+
+					// if user hasn't rated the seed yet, add it to recommendations list
+					if(!hasRatedItem(userHistory, seed)){
+						reclist.add(new RecommendationTriple(seed, score, -1)); 
+						recItemsSet.add(seed);
+						logger.debug("Standard seed {} added with score {}", seed, score);
+					}
 					// per i seed standard non c'è una matrice di provenienza. ----------------------------------------
 					// associamo matID= -1 e diamo peso pari a 1
 				}
 
-				logger.debug("aggiungo standard seed");
+				logger.debug("Added standard seeds");
 			}
 
-			//aggiungo i seeds esterni se ci sono 
-			if(this.seed_itemset != null){
-				logger.debug("aggiungo {} item di seed_itemset", this.seed_itemset.size());
-				seeds.addAll(this.seed_itemset);
-				for (long seed : seed_itemset) {
-					double score = scorer.score(user, seed);
-					seedMap.put(seed, score);				
-				}
+			// aggiungo i seeds esterni se ci sono 
+			if(this.seed_itemset != null) {
+				for (long seed : seed_itemset)
+					if(!seedMap.containsKey(seed)) {
+						double score = scorer.score(user, seed);
+						seedMap.put(seed, score);		
+						logger.debug("Added seed {} from seed_itemset", seed);
+					}
 			}
 
 			//prendo i positivi e gli aggiungo a seedmap e seeds
-			if(userHistory != null){
-				logger.debug("valore medio voti per user {}: {}", user, this.meanValue(user));
+			if(userHistory != null) {			
 				double meanUserRating = meanValue(user);
+				logger.debug("Ratings mean value for user {}: {}", user, meanUserRating);
 				for(Rating rate : userHistory)
-					if(rate.getValue() >= meanUserRating){
-						seedMap.put(rate.getItemId(),rate.getValue());	
-						seeds.add(rate.getItemId());
-					}		
+					if(rate.getValue() >= meanUserRating)
+						seedMap.put(rate.getItemId(),rate.getValue());			
 			}
 
 			/*if(positiveRate.size()==0){
@@ -114,24 +116,22 @@ public class SeedRecommender extends AbstractItemRecommender {
 			}*/
 
 		}
-		else{
+		else {
 			//da implementare
-			logger.debug("user {} ha votato {} items - non in coldstart",user,userHistory.size());
-			for (Rating rating : userHistory){
-				seeds.add(rating.getItemId());
+			logger.debug("User {} rated {} items - not in coldstart situation",user,userHistory.size());
+			for (Rating rating : userHistory)
 				seedMap.put(rating.getItemId(), rating.getValue());
-			}
 		}
 
 		int k=0;
-		while(recItemsSet.size() < 20) {
-			for (Long s : seeds)
+		while(recItemsSet.size() < n) {
+			for (Long s : seedMap.keySet())
 				for(Integer matID : models.keySet()) {
 					SparseVector neighbors = models.get(matID).getModel().getNeighbors(s);
 					if (!neighbors.isEmpty()){
 						LongArrayList neighs = neighbors.keysByValue(true);
 						Long i = neighs.get(k);
-						if (!seeds.contains(i) ) {
+						if (!seedMap.containsKey(i) ) {
 
 							double simISnorm = normalize(-1, 1, neighbors.get(i), 0, 1); /// SISTEMARE...............................................
 							if(models.get(matID).getModel() instanceof CoOccurrenceMatrixModel)
@@ -146,19 +146,91 @@ public class SeedRecommender extends AbstractItemRecommender {
 			k++;
 		}
 
-		//		//STAMPA ITEM IN RECCOMMENDATION TRIPLE
-		//		logger.debug("RECOMMENDATION TRIPLE per re-rank(R,N)");
-		//		Iterator it = reclist.iterator();
-		//		while(it.hasNext()){
-		//			RecommendationTriple r=(RecommendationTriple) it.next();
-		//			logger.debug("itemID:{} score:{} matID:{}",r.getItemID(),r.getScore(),r.getMatID());
-		//		}
+		//STAMPA ITEM IN RECCOMMENDATION TRIPLE
+		logger.debug("RECOMMENDATION TRIPLE per re-rank(R,N)");
+		for(RecommendationTriple r : reclist)
+			logger.debug("itemID:{} score:{} matID:{}",r.getItemID(),r.getScore(),r.getMatID());
 
-		// effettua un re-ranking di R, prendendo i top-N
 		return getRankedRecommendationsList(n, reclist);
 	}
 
 
+	/**
+	 * Sorts the list of possible recommendations. 
+	 * Since the list can contain multiple instance of the same item coming from different similarity matrices, 
+	 * it is sorted first by number of occurrences and then by score. 
+	 * The score for an item is computed considering the weight of the matrix that has recommended it.
+	 * @param n The number of recommendations to produce.
+	 * @param items The list of possible recommendations. It can contain multiple instance of the same item.
+	 * @return The result list .
+	 */
+	private List<ScoredId> getRankedRecommendationsList(int n, List<RecommendationTriple> items){
+		logger.debug("Ranking the recommendations list");
+		
+		ScoredItemAccumulator recommendations = new TopNScoredItemAccumulator(n);
+
+		// groups items by id
+		HashMap<Long,List<RecommendationTriple>> unsortedMap = new HashMap<Long,List<RecommendationTriple>>();
+		for(RecommendationTriple triple : items){
+			long item = triple.getItemID();
+			if(!unsortedMap.containsKey(item)){
+				unsortedMap.put(item, new LinkedList<RecommendationTriple>());
+				unsortedMap.get(item).add(triple);
+			}
+			else
+				unsortedMap.get(item).add(triple);
+		}
+
+		TreeSet<OccScoreTriple> sortedList = new TreeSet<OccScoreTriple>();
+
+		// computes the score of each item (weighted mean)
+		for(Long item : unsortedMap.keySet()){
+			double score = 0;
+			double totWm = 0;
+			for(RecommendationTriple i : unsortedMap.get(item)){
+				double si = i.getScore();
+				int mat = i.getMatID();
+				double wm = (mat == -1) ? 1 : models.get(mat).getWeight();
+				totWm += wm;
+				score += si*wm;
+			}
+
+			// sorted first by number of occurrences, then by score
+			sortedList.add(new OccScoreTriple(item, unsortedMap.get(item).size(), score/totWm));	
+		}
+
+		for(OccScoreTriple item : sortedList)
+			recommendations.put(item.getItemID(), item.getScore());
+		
+		logger.debug("Ranking completed");
+		return recommendations.finish();
+	}
+	
+	
+	/**
+	 * Checks if a user has already rated an item
+	 * @param userHistory list of user ratings
+	 * @param seed the item to check
+	 * @return true if the user has already rated the item, otherwise false
+	 */
+	private boolean hasRatedItem(UserHistory<Rating> userHistory, long seed) {
+		if(userHistory == null)
+			return false;
+		for(Rating r : userHistory)
+			if(r.getItemId() == seed)
+				return true;
+		return false;
+	}
+
+	/**
+	 * Converts the double "oldVal" from the range [oldMin,oldMax] to the range [newMin, newMax]
+	 * @param oldMin 
+	 * @param oldMax
+	 * @param oldVal
+	 * @param newMin
+	 * @param newMax
+	 * @return the normalized value of oldVal
+	 */
 	private double normalize(double oldMin, double oldMax, double oldVal, double newMin, double newMax) {
 		double scale = (newMax-newMin)/(oldMax-oldMin);
 		return newMin + ( (oldVal-oldMin) * scale );
@@ -166,14 +238,12 @@ public class SeedRecommender extends AbstractItemRecommender {
 
 
 	/**
-	 * Metodo che restituisce il voto medio per un utente l
-	 * 
-	 * @param l utente
-	 * @return voto medio utente
+	 * @param user user id
+	 * @return ratings mean value
 	 */
-	private double meanValue(long l){
+	private double meanValue(long user){
 		double sum=0.0;
-		UserHistory<Rating> userHistory = uedao.getEventsForUser(l, Rating.class);
+		UserHistory<Rating> userHistory = uedao.getEventsForUser(user, Rating.class);
 		for(Rating rate : userHistory) 
 			sum += rate.getValue();
 		return sum/userHistory.size();
@@ -253,52 +323,5 @@ public class SeedRecommender extends AbstractItemRecommender {
 	}
 
 
-	/**
-	 * Sorts the list of possible recommendations. 
-	 * Since the list can contain multiple instance of the same item coming from different similarity matrices, 
-	 * it is sorted first by number of occurrences and then by score. 
-	 * The score for an item is computed considering the weight of the matrix that has recommended it.
-	 * @param n The number of recommendations to produce.
-	 * @param items The list of possible recommendations. It can contain multiple instance of the same item.
-	 * @return The result list .
-	 */
-	private List<ScoredId> getRankedRecommendationsList(int n, List<RecommendationTriple> items){
-		ScoredItemAccumulator recommendations = new TopNScoredItemAccumulator(n);
-
-		// groups items by id
-		HashMap<Long,List<RecommendationTriple>> unsortedMap = new HashMap<Long,List<RecommendationTriple>>();
-		for(RecommendationTriple triple : items){
-			long item = triple.getItemID();
-			if(!unsortedMap.containsKey(item)){
-				unsortedMap.put(item, new LinkedList<RecommendationTriple>());
-				unsortedMap.get(item).add(triple);
-			}
-			else
-				unsortedMap.get(item).add(triple);
-		}
-
-		TreeSet<OccScoreTriple> sortedList = new TreeSet<OccScoreTriple>();
-
-		// computes the score of each item (weighted mean)
-		for(Long item : unsortedMap.keySet()){
-			double score = 0;
-			double totWm = 0;
-			for(RecommendationTriple i : unsortedMap.get(item)){
-				double si = i.getScore();
-				int mat = i.getMatID();
-				double wm = (mat == -1) ? 1 : models.get(mat).getWeight();
-				totWm += wm;
-				score += si*wm;
-			}
-
-			// sorted first by number of occurrences, then by score
-			sortedList.add(new OccScoreTriple(item, unsortedMap.get(item).size(), score/totWm));	
-		}
-
-		for(OccScoreTriple item : sortedList)
-			recommendations.put(item.getItemID(), item.getScore());
-
-		return recommendations.finish();
-	}
 
 }
