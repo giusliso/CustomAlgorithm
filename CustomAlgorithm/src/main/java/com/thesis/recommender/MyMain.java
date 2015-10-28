@@ -6,6 +6,7 @@ import org.grouplens.lenskit.ItemRecommender;
 import org.grouplens.lenskit.ItemScorer;
 import org.grouplens.lenskit.RecommenderBuildException;
 import org.grouplens.lenskit.baseline.ItemMeanRatingItemScorer;
+import org.grouplens.lenskit.baseline.MeanDamping;
 import org.grouplens.lenskit.baseline.UserMeanBaseline;
 import org.grouplens.lenskit.baseline.UserMeanItemScorer;
 import org.grouplens.lenskit.core.LenskitConfiguration;
@@ -28,12 +29,11 @@ import com.thesis.qualifiers.CosineSimilarityModel;
 
 public class MyMain {
 
+	@SuppressWarnings("unchecked")
 	public static void main(String[] args) throws RecommenderBuildException {
 
 		// load data
-//		CSVDataSourceBuilder dataset = new  CSVDataSourceBuilder(new File("data/mydata.dat"));
-//		dataset.setDelimiter("::");
-		CSVDataSourceBuilder dataset = new  CSVDataSourceBuilder(new File("data/u.data"));
+		CSVDataSourceBuilder dataset = new CSVDataSourceBuilder(new File("data/u.data"));
 		dataset.setDelimiter("\t");
 		dataset.setDomain(new PreferenceDomain(1,5,1));
 		DataSource data = dataset.build();
@@ -47,15 +47,13 @@ public class MyMain {
 		// scorer
 		config.bind(ItemScorer.class).to(UserMeanItemScorer.class);
 		config.bind(UserMeanBaseline.class, ItemScorer.class).to(ItemMeanRatingItemScorer.class);
+		config.set(MeanDamping.class).to(5.0);
 		
 		// models
 		config.bind(CoOccurrenceModel.class, ItemItemModel.class).to(CoOccurrenceMatrixModel.class);
 		config.bind(CosineSimilarityModel.class, ItemItemModel.class).to(SimilarityMatrixModel.class);
 		config.within(CosineSimilarityModel.class, ItemItemModel.class).bind(VectorSimilarity.class).to(CosineVectorSimilarity.class);
-		
-//		config.bind(ItemItemModel.class).to(SimilarityMatrixModel.class);
-//		config.bind(VectorSimilarity.class).to(CosineVectorSimilarity.class);
-		
+
 		// recommender
 		config.bind(ItemRecommender.class).to(SeedRecommender.class);
 

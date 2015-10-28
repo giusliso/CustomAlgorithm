@@ -39,7 +39,7 @@ public class SeedRecommender extends AbstractItemRecommender {
 	private ItemScorer scorer;
 	private boolean activate_standard_seed = true;
 	private ModelsManager models;
-	private Set<Long> seed_itemset;
+	private Set<Long> seed_itemset = null;
 
 	@Inject
 	public SeedRecommender(EventDAO dao, UserEventDAO uedao, ItemScorer scorer, 
@@ -96,7 +96,7 @@ public class SeedRecommender extends AbstractItemRecommender {
 
 			//prendo i positivi e gli aggiungo a seedmap e seeds
 			if(userHistory != null) {			
-				double meanUserRating = meanValue(user);
+				double meanUserRating = meanValue(userHistory);
 				logger.debug("Ratings mean value for user {}: {}", user, meanUserRating);
 				for(Rating rate : userHistory)
 					if(rate.getValue() >= meanUserRating)
@@ -239,12 +239,11 @@ public class SeedRecommender extends AbstractItemRecommender {
 
 
 	/**
-	 * @param user user id
+	 * @param userHistory ratings by user
 	 * @return ratings mean value
 	 */
-	private double meanValue(long user){
+	private double meanValue(UserHistory<Rating> userHistory){
 		double sum=0.0;
-		UserHistory<Rating> userHistory = uedao.getEventsForUser(user, Rating.class);
 		for(Rating rate : userHistory) 
 			sum += rate.getValue();
 		return sum/userHistory.size();
@@ -273,7 +272,6 @@ public class SeedRecommender extends AbstractItemRecommender {
 		return this.recommend(user, n);
 	}
 
-
 	/**
 	 * List<ScoredId> get_recommendation_list(userID,N,activate_standard_seed)
 	 * Produce recommendation list di dimensione N per l�utente registrato userID, in assenza di seed esterni. Si pu� invocare quando userID entra nella piattaforma e non ha effettuato alcuna azione. La recommendation list che si ottiene consente di avere i primi suggerimenti per userID  
@@ -286,7 +284,6 @@ public class SeedRecommender extends AbstractItemRecommender {
 		this.activate_standard_seed=activate_standard_seed;
 		return this.recommend(user, n);
 	}
-
 
 	/**
 	 * List<ScoredId> get_recommendation_list(userID,N,activate_standard_seed)
@@ -307,8 +304,6 @@ public class SeedRecommender extends AbstractItemRecommender {
 	}
 
 
-
-
 	/**
 	 * Servizio get_recommendation_list(n)
 	 * 
@@ -322,7 +317,5 @@ public class SeedRecommender extends AbstractItemRecommender {
 	public List<ScoredId> get_recommendation_list(int n){
 		return this.recommend(-1, n);
 	}
-
-
 
 }
