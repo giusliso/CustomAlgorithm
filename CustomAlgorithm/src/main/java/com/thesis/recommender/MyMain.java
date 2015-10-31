@@ -24,6 +24,7 @@ import org.grouplens.lenskit.vectors.similarity.VectorSimilarity;
 import com.thesis.models.CoOccurrenceMatrixModel;
 import com.thesis.qualifiers.CoOccurrenceModel;
 import com.thesis.qualifiers.CosineSimilarityModel;
+import com.thesis.scorers.PositiveUserMeanItemScorer;
 
 
 
@@ -45,10 +46,12 @@ public class MyMain {
 		config.bind(EventDAO.class).to(data.getEventDAO());
 
 		// scorer
-		config.bind(ItemScorer.class).to(UserMeanItemScorer.class);
+		config.bind(ItemScorer.class).to(PositiveUserMeanItemScorer.class);
+//		config.bind(ItemScorer.class).to(UserMeanItemScorer.class);
 		config.bind(UserMeanBaseline.class, ItemScorer.class).to(ItemMeanRatingItemScorer.class);
 		config.set(MeanDamping.class).to(5.0);
 		
+
 		// models
 		config.bind(CoOccurrenceModel.class, ItemItemModel.class).to(CoOccurrenceMatrixModel.class);
 		config.bind(CosineSimilarityModel.class, ItemItemModel.class).to(SimilarityMatrixModel.class);
@@ -60,7 +63,7 @@ public class MyMain {
 		// --- RECOMMENDATIONS
 		LenskitRecommender rec = LenskitRecommender.build(config);
 
-		List<ScoredId> recommendations1 = ((SeedRecommender) rec.getItemRecommender()).get_recommendation_list(12345, 10, true);
+		List<ScoredId> recommendations1 = ((SeedRecommender) rec.getItemRecommender()).get_recommendation_list(12345, 5, true);
 //		List<ScoredId> recommendations2 = rec.getItemRecommender().recommend(12345, 5);
 //		List<ScoredId> recommendations3 = rec.getItemRecommender().recommend(1, 5);
 
@@ -71,3 +74,8 @@ public class MyMain {
 
 	}
 }
+
+/*
+PositiveRatingItemScorer --> [score(50) = 4.633041197516856, score(313) = 4.517228502483387, score(181) = 4.499234041195118, score(71) = 4.375950301393262, score(1594) = 4.088622182110341]
+UserMeanItemScorer       --> [score(71) = 4.375950301393262, score(50) = 4.189436635026426, score(313) = 4.073623939992957, score(181) = 4.0684412501756615, score(1594) = 3.64501761961991]
+*/

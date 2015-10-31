@@ -29,6 +29,7 @@ apply plugin: 'lenskit'
 /* Configure LensKit */
 lenskit {
     version '2.2'
+maxMemory "12G"
 }
 
 import org.grouplens.lenskit.gradle.*
@@ -58,7 +59,7 @@ task evaluate(type: LenskitEval, group: 'evaluate') {
     dependsOn classes                           // perform java compilation before running this
     script 'eval.groovy'                        // configure the name of the lenskit eval description
 
-	threadCount 4
+	threadCount 6
 	maxMemory "12G"
     classpath sourceSets.main.runtimeClasspath  // use the code we have here, plus its deps
 	targets 'cold-eval'

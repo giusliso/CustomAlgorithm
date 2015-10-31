@@ -70,7 +70,7 @@ public class SeedRecommender extends AbstractItemRecommender {
 				for (long seed : set.getSeedItemSet()) {
 					double score = scorer.score(user, seed);
 					seedMap.put(seed, score);	
-
+					
 					// if user hasn't rated the seed yet, add it to recommendations list
 					if(!hasRatedItem(userHistory, seed)){
 						reclist.add(new RecommendationTriple(seed, score, -1)); 
@@ -127,7 +127,8 @@ public class SeedRecommender extends AbstractItemRecommender {
 				for(Integer matID : matIdsSet) {
 					ItemItemModel model = models.getModel(matID);
 					SparseVector neighbors = model.getNeighbors(s);
-					neighsSize = neighbors.size();
+					if(neighsSize > neighbors.size())
+						neighsSize = neighbors.size();
 					if (!neighbors.isEmpty()){
 						LongArrayList neighs = neighbors.keysByValue(true);
 						Long i = neighs.get(k);
@@ -154,7 +155,6 @@ public class SeedRecommender extends AbstractItemRecommender {
 
 		return getRankedRecommendationsList(n, reclist);
 	}
-
 
 	/**
 	 * Sorts the list of possible recommendations. 

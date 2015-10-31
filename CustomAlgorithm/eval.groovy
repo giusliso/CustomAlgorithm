@@ -40,7 +40,7 @@ import com.thesis.qualifiers.CoOccurrenceModel;
 import com.thesis.qualifiers.CosineSimilarityModel;
 import com.thesis.recommender.SeedRecommender
 
-
+import com.thesis.scorers.PositiveUserMeanItemScorer;
 
 dataDir = "build/data"
 
@@ -140,43 +140,43 @@ target("cold-eval") {
 
 		addMetric RMSEPredictMetric
 		addMetric NDCGPredictMetric
-		//		addMetric ItemScorerCoveragePredictMetric;
-		//		addMetric topNConfig(new TopNLengthMetric.Builder())
-		//		addMetric topNConfig(new TopNPopularityMetric.Builder())
-		//		addMetric topNConfig(new TopNEntropyMetric.Builder())
-		//		addMetric topNConfig(new TopNDiversityMetric.Builder())
-		//		addMetric topNConfig(new TopNRMSEMetric.Builder())
-		//
-		//
-		//		def mapM1 = new TopNMapMetric.Builder()
-		//		mapM1.setGoodItems(ItemSelectors.testRatingMatches(Matchers.greaterThanOrEqualTo(4.0d)))
-		//
-		//		def mapM2 = new TopNMapMetric.Builder()
-		//		mapM2.setGoodItems(ItemSelectors.testRatingMatches(Matchers.greaterThanOrEqualTo(5.0d)))
-		//		mapM2.setSuffix("5")
-		//
-		//		addMetric topNConfig(mapM1)
-		//		addMetric topNConfig(mapM2)
+		addMetric ItemScorerCoveragePredictMetric;
+		addMetric topNConfig(new TopNLengthMetric.Builder())
+		addMetric topNConfig(new TopNPopularityMetric.Builder())
+		addMetric topNConfig(new TopNEntropyMetric.Builder())
+		addMetric topNConfig(new TopNDiversityMetric.Builder())
+		addMetric topNConfig(new TopNRMSEMetric.Builder())
 
-		//		def prM1 = new PrecisionRecallTopNMetric().Builder()
-		//		prM1.setGoodItems(ItemSelectors.testRatingMatches(Matchers.greaterThanOrEqualTo(4.0d)))
-		//
-		//		def prM2 = new PrecisionRecallTopNMetric().Builder()
-		//		prM2.setGoodItems(ItemSelectors.testRatingMatches(Matchers.greaterThanOrEqualTo(5.0d)))
-		//		prM2.setSuffix("5")
-		//
-		//		def prM3 = new PrecisionRecallTopNMetric().Builder()
-		//		prM3.setSuffix("fallout")
-		//		prM3.setGoodItems(ItemSelectors.testRatingMatches(Matchers.lessThanOrEqualTo(2.0d)))
-		//
-		//		def prM4 = new PrecisionRecallTopNMetric().Builder()
-		//		prM4.setSuffix("fallout1")
-		//		prM4.setGoodItems(ItemSelectors.testRatingMatches(Matchers.lessThanOrEqualTo(1.0d)))
-		//
-		//		addMetric topNConfig(prM1)
-		//		addMetric topNConfig(prM2)
-		//		addMetric topNConfig(prM3)
-		//		addMetric topNConfig(prM4)
+
+		def mapM1 = new TopNMapMetric.Builder()
+		mapM1.setGoodItems(ItemSelectors.testRatingMatches(Matchers.greaterThanOrEqualTo(4.0d)))
+
+		def mapM2 = new TopNMapMetric.Builder()
+		mapM2.setGoodItems(ItemSelectors.testRatingMatches(Matchers.greaterThanOrEqualTo(5.0d)))
+		mapM2.setSuffix("5")
+
+		addMetric topNConfig(mapM1)
+		addMetric topNConfig(mapM2)
+
+		def prM1 = new PrecisionRecallTopNMetric.Builder()
+		prM1.setGoodItems(ItemSelectors.testRatingMatches(Matchers.greaterThanOrEqualTo(4.0d)))
+
+		def prM2 = new PrecisionRecallTopNMetric.Builder()
+		prM2.setGoodItems(ItemSelectors.testRatingMatches(Matchers.greaterThanOrEqualTo(5.0d)))
+		prM2.setSuffix("5")
+
+		def prM3 = new PrecisionRecallTopNMetric.Builder()
+		prM3.setSuffix("fallout")
+		prM3.setGoodItems(ItemSelectors.testRatingMatches(Matchers.lessThanOrEqualTo(2.0d)))
+
+		def prM4 = new PrecisionRecallTopNMetric.Builder()
+		prM4.setSuffix("fallout1")
+		prM4.setGoodItems(ItemSelectors.testRatingMatches(Matchers.lessThanOrEqualTo(1.0d)))
+
+		addMetric topNConfig(prM1)
+		addMetric topNConfig(prM2)
+		addMetric topNConfig(prM3)
+		addMetric topNConfig(prM4)
 
 
 
@@ -207,19 +207,6 @@ target("cold-eval") {
 			set MeanDamping to 5.0d
 		}
 
-		// Custom algorithm
-		algorithm("SeedRecommender") {
-			bind ItemRecommender to SeedRecommender
-			bind ItemScorer to UserMeanItemScorer
-			bind (UserMeanBaseline,ItemScorer) to ItemMeanRatingItemScorer
-			set MeanDamping to 5.0d
-			bind (CoOccurrenceModel, ItemItemModel) to CoOccurrenceMatrixModel
-			bind (CosineSimilarityModel, ItemItemModel) to SimilarityMatrixModel
-			within (CosineSimilarityModel, ItemItemModel) {
-				bind VectorSimilarity to CosineVectorSimilarity
-			}		
-		}
-
 		algorithm("FunkSVD") {
 			bind ItemScorer to FunkSVDItemScorer
 			bind (BaselineScorer, ItemScorer) to UserMeanItemScorer
@@ -229,5 +216,30 @@ target("cold-eval") {
 			set IterationCount to 150
 		}
 
+		// Custom algorithm
+		//		algorithm("SeedRec_pos") {
+		//			bind ItemRecommender to SeedRecommender
+		////			bind ItemScorer to UserMeanItemScorer
+		//			bind ItemScorer to PositiveUserMeanItemScorer
+		//			bind (UserMeanBaseline, ItemScorer) to ItemMeanRatingItemScorer
+		//			set MeanDamping to 5.0d
+		//			bind (CoOccurrenceModel, ItemItemModel) to CoOccurrenceMatrixModel
+		//			bind (CosineSimilarityModel, ItemItemModel) to SimilarityMatrixModel
+		//			within (CosineSimilarityModel, ItemItemModel) {
+		//				bind VectorSimilarity to CosineVectorSimilarity
+		//			}
+		//		}
+
+		algorithm("SeedRec") {
+			bind ItemRecommender to SeedRecommender
+			bind ItemScorer to UserMeanItemScorer
+			bind (UserMeanBaseline, ItemScorer) to ItemMeanRatingItemScorer
+			set MeanDamping to 5.0d
+			bind (CoOccurrenceModel, ItemItemModel) to CoOccurrenceMatrixModel
+			bind (CosineSimilarityModel, ItemItemModel) to SimilarityMatrixModel
+			within (CosineSimilarityModel, ItemItemModel) {
+				bind VectorSimilarity to CosineVectorSimilarity
+			}
+		}
 	}
 }
