@@ -184,14 +184,13 @@ public class SeedRecommender extends AbstractItemRecommender {
 			for (long seed : set.getSeedItemSet()) {
 				double score = scorer.score(user, seed);
 				seedMap.put(seed, score);	
-//				// if user hasn't rated the seed yet, add it to recommendations list
-//				if(!hasRatedItem(userHistory, seed)){
-//					reclist.put(seed, score); 
-//					logger.debug("Standard seed {} added with score {}", seed, score);
-//				}
+				// if user hasn't rated the seed yet, add it to recommendations list
+				if(!hasRatedItem(userHistory, seed)){
+					reclist.put(seed, score); 
+					logger.debug("Standard seed {} added with score {}", seed, score);
+				}
 			}
-
-//			logger.debug("Added standard seeds");
+			logger.debug("Added standard seeds");
 		}
 
 		// aggiungo i seeds esterni se ci sono 
@@ -211,8 +210,8 @@ public class SeedRecommender extends AbstractItemRecommender {
 
 		//prendo gli elementi del catalogo e non considero gli item votati dall'utente
 		LongSet recommendableItems = idao.getItemIds();
-		for(Rating r : userHistory)
-			recommendableItems.remove(r.getItemId());
+		for(long s : seedMap.keySet())
+			recommendableItems.remove(s);
 
 		logger.debug("Scoring {} items.", recommendableItems.size());
 		for(long itemId : recommendableItems){
