@@ -40,8 +40,6 @@ import com.thesis.qualifiers.CoOccurrenceModel;
 import com.thesis.qualifiers.CosineSimilarityModel;
 import com.thesis.recommender.SeedRecommender
 
-import com.thesis.scorers.PositiveUserMeanItemScorer;
-
 dataDir = "build/data"
 
 // utility function allows me to load code bits from other files and run them as if they were in this file
@@ -70,13 +68,13 @@ datasets = []
 load("Datasets/ML-100K.groovy")
 load("Datasets/ML-1m.groovy")
 
-
 // dataset switches
 datasetName = "ml100k"
-//sizes = [1,3,7,11,15,19]
+
 sizes = [0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19]
 maxSize = 19
-
+//sizes = [0,5,10,15,20,30,40,50,60,70,80,90,100]
+//maxSize = 100
 
 // process all datasets
 crossfolds = [:]
@@ -216,25 +214,13 @@ target("cold-eval") {
 			set IterationCount to 150
 		}
 
-		// Custom algorithm
-		//		algorithm("SeedRec_pos") {
-		//			bind ItemRecommender to SeedRecommender
-		////			bind ItemScorer to UserMeanItemScorer
-		//			bind ItemScorer to PositiveUserMeanItemScorer
-		//			bind (UserMeanBaseline, ItemScorer) to ItemMeanRatingItemScorer
-		//			set MeanDamping to 5.0d
-		//			bind (CoOccurrenceModel, ItemItemModel) to CoOccurrenceMatrixModel
-		//			bind (CosineSimilarityModel, ItemItemModel) to SimilarityMatrixModel
-		//			within (CosineSimilarityModel, ItemItemModel) {
-		//				bind VectorSimilarity to CosineVectorSimilarity
-		//			}
-		//		}
 
 		algorithm("SeedRec") {
 			bind ItemRecommender to SeedRecommender
 			bind ItemScorer to UserMeanItemScorer
 			bind (UserMeanBaseline, ItemScorer) to ItemMeanRatingItemScorer
 			set MeanDamping to 5.0d
+			set NeighborhoodSize to 20
 			bind (CoOccurrenceModel, ItemItemModel) to CoOccurrenceMatrixModel
 			bind (CosineSimilarityModel, ItemItemModel) to SimilarityMatrixModel
 			within (CosineSimilarityModel, ItemItemModel) {
