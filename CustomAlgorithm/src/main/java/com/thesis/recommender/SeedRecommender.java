@@ -12,6 +12,8 @@ import org.grouplens.lenskit.ItemScorer;
 import org.grouplens.lenskit.basic.AbstractItemRecommender;
 import org.grouplens.lenskit.data.dao.EventDAO;
 import org.grouplens.lenskit.data.dao.ItemDAO;
+import org.grouplens.lenskit.data.dao.PrefetchingUserDAO;
+import org.grouplens.lenskit.data.dao.UserDAO;
 import org.grouplens.lenskit.data.dao.UserEventDAO;
 import org.grouplens.lenskit.data.event.Rating;
 import org.grouplens.lenskit.data.history.UserHistory;
@@ -93,8 +95,8 @@ public class SeedRecommender extends AbstractItemRecommender {
 
 		if(this.activate_standard_seed) {
 			SeedItemSet set = new SeedItemSet(dao);
-
-			for (long seed : set.getSeedItemSet()) {
+			Set<Long> seeds = set.getSeedItemSet();
+			for (long seed : seeds) {
 				double score = scorer.score(user, seed);
 				seedMap.put(seed, score);	
 
@@ -104,7 +106,7 @@ public class SeedRecommender extends AbstractItemRecommender {
 					recItemsSet.add(seed);
 					logger.debug("Standard seed {} added with score {}", seed, score);
 				}
-				// per i seed standard non c'Ã¨ una matrice di provenienza. ----------------------------------------
+				// per i seed standard non c'è una matrice di provenienza. ----------------------------------------
 				// associamo matID= -1 e diamo peso pari a 1
 			}
 
@@ -164,7 +166,7 @@ public class SeedRecommender extends AbstractItemRecommender {
 	}
 
 	/**
-	 * Implements the algorithm to use not in case of cold start situation (i.e. user ratings â‰¥ 20).
+	 * Implements the algorithm to use not in case of cold start situation (i.e. user ratings ≥ 20).
 	 * @param user The user ID.
 	 * @param n The number of recommendations to produce, or a negative value to produce unlimited recommendations.
 	 * @return The result list.
@@ -176,54 +178,41 @@ public class SeedRecommender extends AbstractItemRecommender {
 
 		TopNScoredItemAccumulator reclist = new TopNScoredItemAccumulator(n);		
 
+		// prendo il catalogo con TUTTI gli item
+		LongSet recommendableItems = idao.getItemIds();
+
 		Long2DoubleArrayMap seedMap = new Long2DoubleArrayMap();
 
-		/* if(this.activate_standard_seed) {
-			SeedItemSet set = new SeedItemSet(dao);
-
-			for (long seed : set.getSeedItemSet()) {
+		// considero i seeds esterni se ci sono
+		if(this.seed_itemset != null) {
+			for (long seed : seed_itemset){
 				double score = scorer.score(user, seed);
-				seedMap.put(seed, score);	
-//				// if user hasn't rated the seed yet, add it to recommendations list
-//				if(!hasRatedItem(userHistory, seed)){
-//					reclist.put(seed, score); 
-//					logger.debug("Standard seed {} added with score {}", seed, score);
-//				}
+				seedMap.put(seed, score);
+				// rimuovo il seed_item dal catalogo
+				recommendableItems.remove(seed);
+				logger.debug("Removed seed_item {} (score: {}) from catalog", seed, score);
 			}
+		}
 
-//			logger.debug("Added standard seeds");
-		} */
-
-		// aggiungo i seeds esterni se ci sono 
-		/* if(this.seed_itemset != null) {
-			for (long seed : seed_itemset)
-				if(!seedMap.containsKey(seed)) {
-					double score = scorer.score(user, seed);
-					seedMap.put(seed, score);		
-					logger.debug("Added seed {} from seed_itemset", seed);
-				}
-		} */
-
-		//prendo i rating dell'utente e li aggiungo a seedMap
-		for (Rating rating : userHistory)
+		// considero i rating dell'utente 
+		for (Rating rating : userHistory){
 			seedMap.put(rating.getItemId(), rating.getValue());
-
+			// elimino gli item votati dall'utente dal catalogo
+			recommendableItems.remove(rating.getItemId());
+			logger.debug("Removed rated item {} (rate: {}) from catalog", rating.getItemId(), rating.getValue());
+		}
 
 		//prendo gli elementi del catalogo e non considero gli item votati dall'utente
-		LongSet recommendableItems = idao.getItemIds();
-		for(Rating r : userHistory)
-			recommendableItems.remove(r.getItemId());
 
 		logger.debug("Scoring {} items.", recommendableItems.size());
 		for(long itemId : recommendableItems){
 			double recscoreI=0;
-			double simI=0; 
-			int totWm=0;
+			double weightI=0; 
 			Set<Integer> matIdsSet = models.modelsIdSet();		
 			for(Integer matID : matIdsSet) {
 				ItemItemModel model = models.getModel(matID);
 
-				//prendo gli "neighborhoodSize" item piÃ¹ vicini all'item considerato e li memorizzo in neighs
+				//prendo gli "neighborhoodSize" item più vicini all'item considerato e li memorizzo in neighs
 				SparseVector neighbors = model.getNeighbors(itemId);
 
 				LongList neighs = (!neighbors.isEmpty()) ? neighbors.keysByValue(true) : new LongArrayList();
@@ -240,17 +229,13 @@ public class SeedRecommender extends AbstractItemRecommender {
 							simISnorm = neighbors.get(neigh);
 
 						double scoreSeed = seedMap.get(neigh);
-					
+
 						recscoreI += simISnorm*scoreSeed*models.getModelWeight(matID);
-						totWm+=models.getModelWeight(matID);
-						simI += simISnorm;
+						weightI += models.getModelWeight(matID);
 					}
-				}
-				
-				
+				}			
 			}
-			reclist.put(itemId, recscoreI/(simI*totWm));
-			
+			reclist.put(itemId, recscoreI/weightI);
 		}
 
 		return reclist.finish();
@@ -352,11 +337,11 @@ public class SeedRecommender extends AbstractItemRecommender {
 
 	/**
 	 * List<ScoredId> get_recommendation_list(userID,N,seed_itemset,activate_standard_seed)
-	 * produce recommendation list di dimensione N per lï¿½utente registrato userID, avendo in input anche 
-	 * una lista di item da utilizzare come seed esterni, ovvero come item iniziali che innescano lï¿½algoritmo. 
-	 * Il parametro activate_standard_seed ï¿½ un boolean che regola lï¿½uso dei 4 seed standard in aggiunta a 
-	 * quelli esterni, passati come parametro. Si puï¿½ invocare quando ad esempio un utente ha effettuato 
-	 * una ricerca, passando come seed_itemset tutto il result set oppure lï¿½item del result set su cui userID 
+	 * produce recommendation list di dimensione N per l�utente registrato userID, avendo in input anche 
+	 * una lista di item da utilizzare come seed esterni, ovvero come item iniziali che innescano l�algoritmo. 
+	 * Il parametro activate_standard_seed � un boolean che regola l�uso dei 4 seed standard in aggiunta a 
+	 * quelli esterni, passati come parametro. Si pu� invocare quando ad esempio un utente ha effettuato 
+	 * una ricerca, passando come seed_itemset tutto il result set oppure l�item del result set su cui userID 
 	 * ha cliccato.
 	 * 		
 	 * @param user utente a cui si vogliono fornire raccomandazioni
@@ -373,7 +358,7 @@ public class SeedRecommender extends AbstractItemRecommender {
 
 	/**
 	 * List<ScoredId> get_recommendation_list(userID,N,activate_standard_seed)
-	 * Produce recommendation list di dimensione N per lï¿½utente registrato userID, in assenza di seed esterni. Si puï¿½ invocare quando userID entra nella piattaforma e non ha effettuato alcuna azione. La recommendation list che si ottiene consente di avere i primi suggerimenti per userID  
+	 * Produce recommendation list di dimensione N per l�utente registrato userID, in assenza di seed esterni. Si pu� invocare quando userID entra nella piattaforma e non ha effettuato alcuna azione. La recommendation list che si ottiene consente di avere i primi suggerimenti per userID  
 	 * @param user utente a cui si vogliono fornire raccomandazioni
 	 * @param n  numero di raccomandazioni
 	 * @param activate_standard_seed attiva seed standard
@@ -387,8 +372,8 @@ public class SeedRecommender extends AbstractItemRecommender {
 	/**
 	 * List<ScoredId> get_recommendation_list(userID,N,activate_standard_seed)
 	 * 
-	 * Produce recommendation list di dimensione N per lï¿½utente registrato userID, in assenza di seed esterni. 
-	 * Si puï¿½ invocare quando userID entra nella piattaforma e non ha effettuato alcuna azione.
+	 * Produce recommendation list di dimensione N per l�utente registrato userID, in assenza di seed esterni. 
+	 * Si pu� invocare quando userID entra nella piattaforma e non ha effettuato alcuna azione.
 	 * La recommendation list che si ottiene consente di avere i primi suggerimenti per userID 
 	 *  
 	 * @param n: raccomandazioni
@@ -405,8 +390,8 @@ public class SeedRecommender extends AbstractItemRecommender {
 	/**
 	 * Servizio get_recommendation_list(n)
 	 * 
-	 * Produce recommendation list di dimensione N per lï¿½utente anonimo, 
-	 * analogamente al servizio per lï¿½utente registrato con passaggio di seed
+	 * Produce recommendation list di dimensione N per l�utente anonimo, 
+	 * analogamente al servizio per l�utente registrato con passaggio di seed
 	 * 
 	 * @param n NUMERO RACCOMANDAZIONI
 	 * @return List<ScoredId> LISTA RACCOMANDAZIONI
