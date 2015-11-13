@@ -12,6 +12,8 @@ import org.grouplens.lenskit.ItemScorer;
 import org.grouplens.lenskit.basic.AbstractItemRecommender;
 import org.grouplens.lenskit.data.dao.EventDAO;
 import org.grouplens.lenskit.data.dao.ItemDAO;
+import org.grouplens.lenskit.data.dao.PrefetchingUserDAO;
+import org.grouplens.lenskit.data.dao.UserDAO;
 import org.grouplens.lenskit.data.dao.UserEventDAO;
 import org.grouplens.lenskit.data.event.Rating;
 import org.grouplens.lenskit.data.history.UserHistory;
@@ -93,8 +95,8 @@ public class SeedRecommender extends AbstractItemRecommender {
 
 		if(this.activate_standard_seed) {
 			SeedItemSet set = new SeedItemSet(dao);
-
-			for (long seed : set.getSeedItemSet()) {
+			Set<Long> seeds = set.getSeedItemSet();
+			for (long seed : seeds) {
 				double score = scorer.score(user, seed);
 				seedMap.put(seed, score);	
 
@@ -176,47 +178,36 @@ public class SeedRecommender extends AbstractItemRecommender {
 
 		TopNScoredItemAccumulator reclist = new TopNScoredItemAccumulator(n);		
 
+		// prendo il catalogo con TUTTI gli item
+		LongSet recommendableItems = idao.getItemIds();
+
 		Long2DoubleArrayMap seedMap = new Long2DoubleArrayMap();
 
-		if(this.activate_standard_seed) {
-			SeedItemSet set = new SeedItemSet(dao);
-
-			for (long seed : set.getSeedItemSet()) {
-				double score = scorer.score(user, seed);
-				seedMap.put(seed, score);	
-				// if user hasn't rated the seed yet, add it to recommendations list
-				if(!hasRatedItem(userHistory, seed)){
-					reclist.put(seed, score); 
-					logger.debug("Standard seed {} added with score {}", seed, score);
-				}
-			}
-			logger.debug("Added standard seeds");
-		}
-
-		// aggiungo i seeds esterni se ci sono 
+		// considero i seeds esterni se ci sono
 		if(this.seed_itemset != null) {
-			for (long seed : seed_itemset)
-				if(!seedMap.containsKey(seed)) {
-					double score = scorer.score(user, seed);
-					seedMap.put(seed, score);		
-					logger.debug("Added seed {} from seed_itemset", seed);
-				}
+			for (long seed : seed_itemset){
+				double score = scorer.score(user, seed);
+				seedMap.put(seed, score);
+				// rimuovo il seed_item dal catalogo
+				recommendableItems.remove(seed);
+				logger.debug("Removed seed_item {} (score: {}) from catalog", seed, score);
+			}
 		}
 
-		//prendo i rating dell'utente e li aggiungo a seedMap
-		for (Rating rating : userHistory)
+		// considero i rating dell'utente 
+		for (Rating rating : userHistory){
 			seedMap.put(rating.getItemId(), rating.getValue());
-
+			// elimino gli item votati dall'utente dal catalogo
+			recommendableItems.remove(rating.getItemId());
+			logger.debug("Removed rated item {} (rate: {}) from catalog", rating.getItemId(), rating.getValue());
+		}
 
 		//prendo gli elementi del catalogo e non considero gli item votati dall'utente
-		LongSet recommendableItems = idao.getItemIds();
-		for(long s : seedMap.keySet())
-			recommendableItems.remove(s);
 
 		logger.debug("Scoring {} items.", recommendableItems.size());
 		for(long itemId : recommendableItems){
 			double recscoreI=0;
-			double simI=0; 
+			double weightI=0; 
 			Set<Integer> matIdsSet = models.modelsIdSet();		
 			for(Integer matID : matIdsSet) {
 				ItemItemModel model = models.getModel(matID);
@@ -239,12 +230,12 @@ public class SeedRecommender extends AbstractItemRecommender {
 
 						double scoreSeed = seedMap.get(neigh);
 
-						recscoreI += simISnorm*scoreSeed;
-						simI += simISnorm;
+						recscoreI += simISnorm*scoreSeed*models.getModelWeight(matID);
+						weightI += models.getModelWeight(matID);
 					}
 				}			
 			}
-			reclist.put(itemId, recscoreI/simI);
+			reclist.put(itemId, recscoreI/weightI);
 		}
 
 		return reclist.finish();
