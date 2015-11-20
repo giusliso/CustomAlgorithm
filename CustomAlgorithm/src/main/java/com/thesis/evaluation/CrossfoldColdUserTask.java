@@ -92,9 +92,12 @@ public class CrossfoldColdUserTask extends CrossfoldTask {
 					p = mode.partition(ratings, getProject().getRandom())%20;
 					logger.info("Partition {} has {} cold start test user with {}/{} training ratings", foldNum, history.getUserId(), p,n);
 				}
-				else // for user not in cold start situation
+				else { // for user not in cold start situation
 					p = mode.partition(ratings, getProject().getRandom());
-
+					if(p<20)
+						p=20+(n-20)/2;
+				}
+				
 				for (int f = 0; f < getPartitionCount(); f++) {
 					if (f == foldNum) {
 						for (int j = 0; j < p; j++)
