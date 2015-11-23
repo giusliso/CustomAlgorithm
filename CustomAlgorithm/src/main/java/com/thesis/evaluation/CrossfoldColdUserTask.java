@@ -2,10 +2,11 @@ package com.thesis.evaluation;
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 
-import org.grouplens.lenskit.cursors.Cursor;
+import org.grouplens.lenskit.cursors.Cursors;
 import org.grouplens.lenskit.data.event.Rating;
 import org.grouplens.lenskit.data.history.UserHistory;
 import org.grouplens.lenskit.eval.TaskExecutionException;
@@ -65,39 +66,42 @@ public class CrossfoldColdUserTask extends CrossfoldTask {
 
 		logger.info("splitting data source {} to {} partitions by users", getName(), getPartitionCount());
 
-		Long2IntMap splits = splitUsers(getSource().getUserDAO()); // divide gli utenti nelle varie partizioni TEST
+		Long2IntMap splits = splitUsers(getSource().getUserDAO()); 
 
-		Cursor<UserHistory<Rating>> historyCursor = getSource().getUserEventDAO().streamEventsByUser(Rating.class);
 		Holdout mode = this.getHoldout();
 		try {
 			int testUsers = getSource().getUserDAO().getUserIds().size()/getPartitionCount();
 			int csUsers = testUsers*coldPercent/100;
 			logger.info("cold start test users in each partition: {}%", coldPercent);
 
-			HashMap<Integer,Integer> csUsersMap = new HashMap<Integer,Integer>(); // partition, #cold start users
+			// map whose keys are couple < partition, cold start users in it >
+			HashMap<Integer,Integer> csUsersMap = new HashMap<Integer,Integer>(); 
 			for(int p=0; p<getPartitionCount(); p++)
 				csUsersMap.put(p,0);
 
-			for (UserHistory<Rating> history : historyCursor) {
+			ArrayList<UserHistory<Rating>> histories = Cursors.makeList(getSource().getUserEventDAO().streamEventsByUser(Rating.class));
+			Collections.shuffle(histories);
+
+			for (UserHistory<Rating> history : histories) {
 				int foldNum = splits.get(history.getUserId());
 
 				csUsersMap.put(foldNum, csUsersMap.get(foldNum)+1);
 
 				List<Rating> ratings = new ArrayList<Rating>(history);
 				final int n = ratings.size();
-				final int p;// how many training ratings must have the current user
-			
+				int p;// how many training ratings must have the current user
+
 				if(csUsersMap.get(foldNum)<=csUsers) {
-					// for user in cold start situation
+					// for users in cold start situation
 					p = mode.partition(ratings, getProject().getRandom())%20;
 					logger.info("Partition {} has {} cold start test user with {}/{} training ratings", foldNum, history.getUserId(), p,n);
 				}
-				else { // for user not in cold start situation
+				else { // for users not in cold start situation
 					p = mode.partition(ratings, getProject().getRandom());
 					if(p<20)
-						p=20+(n-20)/2;
+						p=20+(n-20)/2; 
 				}
-				
+
 				for (int f = 0; f < getPartitionCount(); f++) {
 					if (f == foldNum) {
 						for (int j = 0; j < p; j++)
@@ -113,10 +117,7 @@ public class CrossfoldColdUserTask extends CrossfoldTask {
 			}
 		} catch (IOException e) {
 			throw new TaskExecutionException("Error writing to the train test files", e);
-		} finally {
-			historyCursor.close();
 		}
-
 	}
 
 	/**
