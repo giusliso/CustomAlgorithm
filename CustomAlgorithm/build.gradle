@@ -73,4 +73,5 @@ task evaluate_all(type: LenskitEval, group: 'evaluate') {
 	threadCount 4
 	maxMemory "12G"
 	classpath sourceSets.main.runtimeClasspath  // use the code we have here, plus its deps
+	targets 'eval'
 }
