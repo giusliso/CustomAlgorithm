@@ -124,10 +124,7 @@ public class CrossfoldColdUserTask extends CrossfoldTask {
 	 * Set how many test user must be in cold start situation.
 	 * @param csPercentual cold start test user percentage 
 	 */
-	public CrossfoldColdUserTask setColdStartCasesPercentual(int csPercentual) {
+	public void setColdStartCasesPercentual(int csPercentual) {
 		this.coldPercent = csPercentual;
-		return this;
 	}
-
-
 }
