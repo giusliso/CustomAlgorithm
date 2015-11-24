@@ -1,4 +1,5 @@
 package com.thesis.recommender;
+import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Date;
 import java.util.HashSet;
@@ -6,6 +7,7 @@ import java.util.List;
 import java.util.Set;
 
 import org.grouplens.lenskit.cursors.Cursor;
+import org.grouplens.lenskit.cursors.Cursors;
 import org.grouplens.lenskit.data.dao.EventDAO;
 import org.grouplens.lenskit.data.dao.ItemDAO;
 import org.grouplens.lenskit.data.dao.ItemEventDAO;
@@ -57,10 +59,15 @@ public class SeedItemSet {
 	}
 
 	private void find() {
-		set.add(getMostPopularItem(Period.EVER));
-		set.add(getMostPopularItem(Period.LAST_WEEK));
-		set.add(getLastPositivelyRatedItem());
-		set.add(getLastItemAddedNotRated());
+		addItem(getMostPopularItem(Period.EVER));
+		addItem(getMostPopularItem(Period.LAST_WEEK));
+		addItem(getLastPositivelyRatedItem());
+		addItem(getLastItemAddedNotRated());
+	}
+
+	private void addItem(Long item){
+		if(item != null)
+			set.add(item);
 	}
 
 	public Set<Long> getSeedItemSet() {
@@ -111,25 +118,25 @@ public class SeedItemSet {
 
 		if(firstTimestamp == null){
 			Cursor<Rating> events = dao.streamEvents(Rating.class, SortOrder.TIMESTAMP);
-
-			for(Rating rating : events){
-				firstTimestamp = new Date(rating.getTimestamp()*1000);
-				return firstTimestamp;	
-			}
+			ArrayList<Rating> ratings = Cursors.makeList(events);	
+			if(ratings.size() == 0)
+				firstTimestamp = Calendar.getInstance().getTime();
+			else
+				firstTimestamp = new Date(ratings.get(0).getTimestamp()*1000);
 		}
 		return firstTimestamp;
 	}
+
 
 	private Date getLastTimestamp(){
 
 		if(lastTimestamp == null){
 			Cursor<Rating> events = dao.streamEvents(Rating.class, SortOrder.TIMESTAMP);
-
-			long lastTimestampTemp=0;
-			for(Rating rating : events)
-				lastTimestampTemp = rating.getTimestamp();			
-			
-			lastTimestamp = new Date(lastTimestampTemp*1000);
+			ArrayList<Rating> ratings = Cursors.makeList(events);						
+			if(ratings.size() == 0)
+				lastTimestamp = Calendar.getInstance().getTime();
+			else
+				lastTimestamp = new Date(ratings.get(ratings.size()-1).getTimestamp()*1000);
 		}
 		return lastTimestamp;
 	}
@@ -148,9 +155,8 @@ public class SeedItemSet {
 
 			for(Rating rating : ratings){
 				Date dateR = new Date(rating.getTimestamp()*1000);
-				if(rating.getValue() >= threshold && dateR.after(date)){
+				if(rating.getValue() >= threshold && dateR.after(date))
 					date = dateR;
-				}
 			}
 
 			if(date.after(recentDate))
@@ -193,7 +199,6 @@ public class SeedItemSet {
 				lastItemAdded=itemId;
 			}
 		}
-
 
 		return lastItemAdded;
 	}
