@@ -7,11 +7,12 @@ import java.lang.annotation.Target;
 
 import javax.inject.Qualifier;
 
-import org.grouplens.grapht.annotation.DefaultNull;
+import org.grouplens.grapht.annotation.DefaultImplementation;
+import com.thesis.models.CoOccurrenceMatrixModel;
 
 @Documented
 @Qualifier
-@DefaultNull
+@DefaultImplementation(CoOccurrenceMatrixModel.class)
 @Target({ElementType.METHOD, ElementType.PARAMETER})
 @Retention(RetentionPolicy.RUNTIME)
 public @interface CoOccurrenceModel {

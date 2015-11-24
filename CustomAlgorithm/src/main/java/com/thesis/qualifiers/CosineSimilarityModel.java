@@ -7,11 +7,12 @@ import java.lang.annotation.Target;
 
 import javax.inject.Qualifier;
 
-import org.grouplens.grapht.annotation.DefaultNull;
+import org.grouplens.grapht.annotation.DefaultImplementation;
+import org.grouplens.lenskit.knn.item.model.SimilarityMatrixModel;
 
 @Documented
 @Qualifier
-@DefaultNull
+@DefaultImplementation(SimilarityMatrixModel.class)
 @Target({ElementType.METHOD, ElementType.PARAMETER})
 @Retention(RetentionPolicy.RUNTIME)
 public @interface CosineSimilarityModel {

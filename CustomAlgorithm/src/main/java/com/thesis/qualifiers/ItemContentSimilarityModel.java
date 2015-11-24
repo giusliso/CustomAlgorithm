@@ -7,11 +7,11 @@ import java.lang.annotation.Target;
 
 import javax.inject.Qualifier;
 
-import org.grouplens.grapht.annotation.DefaultNull;
+import org.grouplens.grapht.annotation.DefaultImplementation;
 
 @Documented
 @Qualifier
-@DefaultNull
+@DefaultImplementation(ItemContentSimilarityModel.class)
 @Target({ElementType.METHOD, ElementType.PARAMETER})
 @Retention(RetentionPolicy.RUNTIME)
 public @interface ItemContentSimilarityModel {
