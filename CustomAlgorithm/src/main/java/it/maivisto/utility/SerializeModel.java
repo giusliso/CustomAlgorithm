@@ -12,49 +12,43 @@ import org.grouplens.lenskit.knn.item.model.ItemItemModel;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import it.maivisto.models.ItemContentMatrixModel;
-import it.maivisto.models.ItemContentMatrixModelBuilder;
-
 public class SerializeModel {
 
 	private static final Logger logger = LoggerFactory.getLogger(SerializeModel.class);
 	
 	/*nb.
-	 * in seguito implementare un metodo che controlla se il dataset è uguale a quello che abbiamo 
+	 * in seguito implementare un metodo che controlla se il dataset ï¿½ uguale a quello che abbiamo 
 	 * utilizzato per costruire i modelli memorizzati nella cartella
 	*/
 	public void serializeModel(ItemItemModel m,String matrixModel){
+		logger.info("Serializing "+matrixModel+"...");
 		try {
 			File dir = new File("data/modelMatrix/");
 			dir.mkdir();
 			ObjectOutputStream out = new ObjectOutputStream(new FileOutputStream(dir+"/"+matrixModel+".dat"));
 			out.writeObject(m);
 			out.close();
-
+			logger.info("Serialized "+matrixModel);
 		} catch (IOException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
+			logger.error(e.getStackTrace().toString());
 		}
 	}
 	public ItemItemModel deSerializeModel(String matrixModel){
+		logger.info("Deserializing "+matrixModel+"...");
 		try {
 			ObjectInputStream in= new ObjectInputStream(new FileInputStream("data/modelMatrix/"+matrixModel+".dat"));
 			ItemItemModel m=(ItemItemModel)in.readObject();
 			in.close();
+			logger.info("Deserialized "+matrixModel);
 			return m;
 		} catch (FileNotFoundException e) {
-			// TODO Auto-generated catch block
-
-			logger.debug("Errore lettura: {}",e.toString());
+			logger.error(e.getStackTrace().toString());
 		} catch (IOException e) {
-			// TODO Auto-generated catch block
-			logger.debug("Errore lettura: {}",e.toString());
+			logger.error(e.getStackTrace().toString());
 		} catch (ClassNotFoundException e) {
-			// TODO Auto-generated catch block
-			logger.debug("Errore lettura: {}",e.toString());
+			logger.error(e.getStackTrace().toString());
 		}
 
 		return null;
-
 	}
 }

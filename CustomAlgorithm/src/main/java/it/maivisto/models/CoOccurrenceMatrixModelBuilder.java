@@ -44,67 +44,64 @@ public class CoOccurrenceMatrixModelBuilder implements Provider<ItemItemModel> {
 	@Override
 	public ItemItemModel get() {
 		int max = 0;
-		CoOccurrenceMatrixModel model=null;
+
 		SerializeModel serial=new SerializeModel();
-		
-		if(serial.deSerializeModel("CoOccurrenceMatrixModel")==null){
-		
-		LongSortedSet allItems = context.getItems();
-		int nitems = allItems.size();
 
-		logger.info("building item-item model for {} items", nitems);
-		logger.debug("co-occurrence function is symmetric");
+		CoOccurrenceMatrixModel model=(CoOccurrenceMatrixModel) serial.deSerializeModel("CoOccurrenceMatrixModel");
+		if(model==null){
 
-		Long2ObjectMap<ScoredItemAccumulator> rows = makeAccumulators(allItems);
+			LongSortedSet allItems = context.getItems();
+			int nitems = allItems.size();
 
-		Stopwatch timer = Stopwatch.createStarted();
-		int ndone=1;
-		for(LongBidirectionalIterator itI = allItems.iterator(); itI.hasNext() ; ) {
-			Long i = itI.next();
-			SparseVector vecI = context.itemVector(i);
+			logger.info("building item-item model for {} items", nitems);
+			logger.info("co-occurrence function is symmetric");
 
-			if (logger.isDebugEnabled()) 
-				logger.debug("computing co-occurrences for item {} ({} of {})", i, ndone, nitems);
+			Long2ObjectMap<ScoredItemAccumulator> rows = makeAccumulators(allItems);
 
-			for(LongBidirectionalIterator itJ = allItems.iterator(i); itJ.hasNext(); ) {
-				Long j = itJ.next();
-				SparseVector vecJ = context.itemVector(j);
-				int coOccurences = vecJ.countCommonKeys(vecI);
-				rows.get(i).put(j, coOccurences);
-				rows.get(j).put(i, coOccurences);
-				
-				if(coOccurences > max)
-					max=coOccurences;
+			Stopwatch timer = Stopwatch.createStarted();
+			int ndone=1;
+			for(LongBidirectionalIterator itI = allItems.iterator(); itI.hasNext() ; ) {
+				Long i = itI.next();
+				SparseVector vecI = context.itemVector(i);
+
+				if (logger.isDebugEnabled()) 
+					logger.info("computing co-occurrences for item {} ({} of {})", i, ndone, nitems);
+
+				for(LongBidirectionalIterator itJ = allItems.iterator(i); itJ.hasNext(); ) {
+					Long j = itJ.next();
+					SparseVector vecJ = context.itemVector(j);
+					int coOccurences = vecJ.countCommonKeys(vecI);
+					rows.get(i).put(j, coOccurences);
+					rows.get(j).put(i, coOccurences);
+
+					if(coOccurences > max)
+						max=coOccurences;
+				}
+
+				if (logger.isDebugEnabled() && ndone % 100 == 0) 
+					logger.info("computed {} of {} model rows ({}s/row)", 
+							ndone, nitems, 
+							String.format("%.3f", timer.elapsed(TimeUnit.MILLISECONDS) * 0.001 / ndone));
+
+				ndone++;
 			}
 
-			if (logger.isDebugEnabled() && ndone % 100 == 0) 
-				logger.debug("computed {} of {} model rows ({}s/row)", 
-						ndone, nitems, 
-						String.format("%.3f", timer.elapsed(TimeUnit.MILLISECONDS) * 0.001 / ndone));
+			logger.info("max co-occurrence value = {}", max);
+			logger.info("normalizing item-item model");
 
-			ndone++;
-		}
-		
-		logger.info("max co-occurrence value = {}", max);
-		logger.info("normalizing item-item model");
-		
-		for(Long i : rows.keySet()){
-			ScoredItemAccumulator acc = new UnlimitedScoredItemAccumulator();			
-			for( ScoredId val : rows.get(i).finish())
-				acc.put(val.getId(), val.getScore()/max);					
-			rows.put(i, acc);
-		}
-		 		
-		logger.info("normalized item-item model");		
-		timer.stop();
-		logger.info("built model for {} items in {}", ndone, timer);
-		model=new CoOccurrenceMatrixModel(finishRows(rows));
-		logger.info("Serializing CoOccurrenceMatrixModel...");
-		serial.serializeModel(model,"CoOccurrenceMatrixModel");
-		}
-		else{
-		logger.info("Reading Serialized CoOccurrenceMatrixModel...");
-		model=(CoOccurrenceMatrixModel) serial.deSerializeModel("CoOccurrenceMatrixModel");
+			for(Long i : rows.keySet()){
+				ScoredItemAccumulator acc = new UnlimitedScoredItemAccumulator();			
+				for( ScoredId val : rows.get(i).finish())
+					acc.put(val.getId(), val.getScore()/max);					
+				rows.put(i, acc);
+			}
+			logger.info("normalized item-item model");		
+			
+			timer.stop();
+			logger.info("built model for {} items in {}", ndone, timer);
+			
+			model=new CoOccurrenceMatrixModel(finishRows(rows));			
+			serial.serializeModel(model,"CoOccurrenceMatrixModel");
 		}
 
 		return model;
