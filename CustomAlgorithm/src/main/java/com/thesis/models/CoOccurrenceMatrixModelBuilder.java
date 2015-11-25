@@ -17,6 +17,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.google.common.base.Stopwatch;
+import com.thesis.utility.SerializeModel;
 
 import it.unimi.dsi.fastutil.longs.Long2ObjectMap;
 import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
@@ -43,6 +44,10 @@ public class CoOccurrenceMatrixModelBuilder implements Provider<ItemItemModel> {
 	@Override
 	public ItemItemModel get() {
 		int max = 0;
+		CoOccurrenceMatrixModel model=null;
+		SerializeModel serial=new SerializeModel();
+		
+		if(serial.deSerializeModel("CoOccurrenceMatrixModel")==null){
 		
 		LongSortedSet allItems = context.getItems();
 		int nitems = allItems.size();
@@ -93,8 +98,16 @@ public class CoOccurrenceMatrixModelBuilder implements Provider<ItemItemModel> {
 		logger.info("normalized item-item model");		
 		timer.stop();
 		logger.info("built model for {} items in {}", ndone, timer);
+		model=new CoOccurrenceMatrixModel(finishRows(rows));
+		logger.info("Serializing CoOccurrenceMatrixModel...");
+		serial.serializeModel(model,"CoOccurrenceMatrixModel");
+		}
+		else{
+		logger.info("Reading Serialized CoOccurrenceMatrixModel...");
+		model=(CoOccurrenceMatrixModel) serial.deSerializeModel("CoOccurrenceMatrixModel");
+		}
 
-		return new CoOccurrenceMatrixModel(finishRows(rows));
+		return model;
 	}
 
 
