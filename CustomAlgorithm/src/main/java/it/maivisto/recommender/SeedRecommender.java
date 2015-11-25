@@ -1,4 +1,4 @@
-package com.thesis.recommender;
+package it.maivisto.recommender;
 
 import java.util.HashMap;
 import java.util.HashSet;
@@ -26,12 +26,11 @@ import org.grouplens.lenskit.vectors.SparseVector;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.thesis.models.CoOccurrenceMatrixModel;
-import com.thesis.qualifiers.CoOccurrenceModel;
-import com.thesis.qualifiers.CosineSimilarityModel;
-import com.thesis.qualifiers.ItemContentSimilarityModel;
-import com.thesis.recommender.RecommendationTriple;
-
+import it.maivisto.models.CoOccurrenceMatrixModel;
+import it.maivisto.qualifiers.CoOccurrenceModel;
+import it.maivisto.qualifiers.CosineSimilarityModel;
+import it.maivisto.qualifiers.ItemContentSimilarityModel;
+import it.maivisto.recommender.RecommendationTriple;
 import it.unimi.dsi.fastutil.longs.Long2DoubleArrayMap;
 import it.unimi.dsi.fastutil.longs.LongArrayList;
 import it.unimi.dsi.fastutil.longs.LongList;

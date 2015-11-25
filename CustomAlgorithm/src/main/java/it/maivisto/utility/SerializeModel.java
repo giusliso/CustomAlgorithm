@@ -1,4 +1,4 @@
-package com.thesis.utility;
+package it.maivisto.utility;
 
 import java.io.File;
 import java.io.FileInputStream;
@@ -12,8 +12,8 @@ import org.grouplens.lenskit.knn.item.model.ItemItemModel;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.thesis.models.ItemContentMatrixModel;
-import com.thesis.models.ItemContentMatrixModelBuilder;
+import it.maivisto.models.ItemContentMatrixModel;
+import it.maivisto.models.ItemContentMatrixModelBuilder;
 
 public class SerializeModel {
 

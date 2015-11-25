@@ -1,4 +1,4 @@
-package com.thesis.qualifiers;
+package it.maivisto.qualifiers;
 import java.lang.annotation.Documented;
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;

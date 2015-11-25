@@ -1,4 +1,4 @@
-package com.thesis.recommender;
+package it.maivisto.recommender;
 import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Date;
@@ -20,13 +20,13 @@ import org.grouplens.lenskit.data.source.DataSource;
 
 /**
  * A class to retrieve the standard seed items set. 
- * i1 ‚Üê the most popular item, i.e. the item with the greatest number of ratings 
+ * i1 ‚Ü? the most popular item, i.e. the item with the greatest number of ratings 
  * 
- * i2 ‚Üê the most recently added item not rated yet (new item in the platform)
+ * i2 ‚Ü? the most recently added item not rated yet (new item in the platform)
  * 
- * i3 ‚Üê the last positively rated item (the last item added in the platform rated in a positive way)
+ * i3 ‚Ü? the last positively rated item (the last item added in the platform rated in a positive way)
  * 
- * i4 ‚Üê the most popular item in a certain period of time (last week/month/year)
+ * i4 ‚Ü? the most popular item in a certain period of time (last week/month/year)
  * 
  * An item is "positive rated" if its rate is equals or greater than the global mean of all ratings.
  */

@@ -1,4 +1,4 @@
-package com.thesis.scorers;
+package it.maivisto.scorers;
 
 import java.io.Serializable;
 

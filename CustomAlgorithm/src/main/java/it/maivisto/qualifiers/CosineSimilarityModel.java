@@ -1,4 +1,4 @@
-package com.thesis.qualifiers;
+package it.maivisto.qualifiers;
 import java.lang.annotation.Documented;
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
@@ -8,12 +8,12 @@ import java.lang.annotation.Target;
 import javax.inject.Qualifier;
 
 import org.grouplens.grapht.annotation.DefaultImplementation;
-import com.thesis.models.CoOccurrenceMatrixModel;
+import org.grouplens.lenskit.knn.item.model.SimilarityMatrixModel;
 
 @Documented
 @Qualifier
-@DefaultImplementation(CoOccurrenceMatrixModel.class)
+@DefaultImplementation(SimilarityMatrixModel.class)
 @Target({ElementType.METHOD, ElementType.PARAMETER})
 @Retention(RetentionPolicy.RUNTIME)
-public @interface CoOccurrenceModel {
+public @interface CosineSimilarityModel {
 }

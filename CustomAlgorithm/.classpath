@@ -42,5 +42,6 @@
 	<classpathentry kind="lib" path="lib/slf4j-api-1.7.6.jar"/>
 	<classpathentry kind="lib" path="lib/vectorz-0.41.2.jar"/>
 	<classpathentry kind="lib" path="lib/xz-1.5.jar"/>
+	<classpathentry kind="lib" path="lib/TextualSimilarity/tsvincente.jar"/>
 	<classpathentry kind="output" path="bin"/>
 </classpath>

@@ -1,4 +1,4 @@
-package com.thesis.evaluation;
+package it.maivisto.evaluation;
 import java.io.File;
 import java.io.IOException;
 import org.grouplens.lenskit.cursors.Cursor;

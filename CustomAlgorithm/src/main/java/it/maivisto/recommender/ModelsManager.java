@@ -1,4 +1,4 @@
-package com.thesis.recommender;
+package it.maivisto.recommender;
 
 import java.util.HashMap;
 import java.util.Set;

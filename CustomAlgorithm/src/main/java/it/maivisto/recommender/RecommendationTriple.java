@@ -1,4 +1,4 @@
-package com.thesis.recommender;
+package it.maivisto.recommender;
 
 public class RecommendationTriple {
 	private long itemID;

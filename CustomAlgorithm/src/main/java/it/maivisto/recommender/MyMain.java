@@ -1,4 +1,4 @@
-package com.thesis.recommender;
+package it.maivisto.recommender;
 import java.io.File;
 import java.util.List;
 
@@ -22,11 +22,11 @@ import org.grouplens.lenskit.scored.ScoredId;
 import org.grouplens.lenskit.vectors.similarity.CosineVectorSimilarity;
 import org.grouplens.lenskit.vectors.similarity.VectorSimilarity;
 
-import com.thesis.models.CoOccurrenceMatrixModel;
-import com.thesis.models.ItemContentMatrixModel;
-import com.thesis.qualifiers.CoOccurrenceModel;
-import com.thesis.qualifiers.CosineSimilarityModel;
-import com.thesis.qualifiers.ItemContentSimilarityModel;
+import it.maivisto.models.CoOccurrenceMatrixModel;
+import it.maivisto.models.ItemContentMatrixModel;
+import it.maivisto.qualifiers.CoOccurrenceModel;
+import it.maivisto.qualifiers.CosineSimilarityModel;
+import it.maivisto.qualifiers.ItemContentSimilarityModel;
 
 
 

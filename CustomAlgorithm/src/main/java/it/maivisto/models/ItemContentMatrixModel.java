@@ -1,4 +1,4 @@
-package com.thesis.models;
+package it.maivisto.models;
 import java.io.Serializable;
 import java.util.Map;
 import org.grouplens.grapht.annotation.DefaultProvider;
