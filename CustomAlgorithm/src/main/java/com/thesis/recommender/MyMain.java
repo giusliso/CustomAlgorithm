@@ -23,8 +23,10 @@ import org.grouplens.lenskit.vectors.similarity.CosineVectorSimilarity;
 import org.grouplens.lenskit.vectors.similarity.VectorSimilarity;
 
 import com.thesis.models.CoOccurrenceMatrixModel;
+import com.thesis.models.ItemContentMatrixModel;
 import com.thesis.qualifiers.CoOccurrenceModel;
 import com.thesis.qualifiers.CosineSimilarityModel;
+import com.thesis.qualifiers.ItemContentSimilarityModel;
 
 
 
@@ -34,7 +36,7 @@ public class MyMain {
 	public static void main(String[] args) throws RecommenderBuildException {
 
 		// load data
-		CSVDataSourceBuilder dataset = new CSVDataSourceBuilder(new File("data/u.data"));
+		CSVDataSourceBuilder dataset = new CSVDataSourceBuilder(new File("data/ml-100k/u.data"));
 		dataset.setDelimiter("\t");
 		dataset.setDomain(new PreferenceDomain(1,5,1));
 		DataSource data = dataset.build();
@@ -57,7 +59,8 @@ public class MyMain {
 		config.bind(CoOccurrenceModel.class, ItemItemModel.class).to(CoOccurrenceMatrixModel.class);
 		config.bind(CosineSimilarityModel.class, ItemItemModel.class).to(SimilarityMatrixModel.class);
 		config.within(CosineSimilarityModel.class, ItemItemModel.class).bind(VectorSimilarity.class).to(CosineVectorSimilarity.class);
-
+		config.bind(ItemContentSimilarityModel.class, ItemItemModel.class).to(ItemContentMatrixModel.class);
+		
 		// recommender
 		config.bind(ItemRecommender.class).to(SeedRecommender.class);
 
