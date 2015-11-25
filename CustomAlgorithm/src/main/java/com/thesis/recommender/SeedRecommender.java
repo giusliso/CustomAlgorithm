@@ -29,6 +29,7 @@ import org.slf4j.LoggerFactory;
 import com.thesis.models.CoOccurrenceMatrixModel;
 import com.thesis.qualifiers.CoOccurrenceModel;
 import com.thesis.qualifiers.CosineSimilarityModel;
+import com.thesis.qualifiers.ItemContentSimilarityModel;
 import com.thesis.recommender.RecommendationTriple;
 
 import it.unimi.dsi.fastutil.longs.Long2DoubleArrayMap;
@@ -53,13 +54,14 @@ public class SeedRecommender extends AbstractItemRecommender {
 	public SeedRecommender(EventDAO dao, ItemDAO idao, UserEventDAO uedao, 
 			ItemScorer scorer, 
 			@CoOccurrenceModel ItemItemModel coOccModel, @CosineSimilarityModel ItemItemModel cosModel,
-			@NeighborhoodSize int nnbrs) {
+			@ItemContentSimilarityModel ItemItemModel contModel,@NeighborhoodSize int nnbrs) {
 		this.uedao = uedao;
 		this.dao = dao;
 		this.idao = idao;
 		this.scorer = scorer;
 		this.neighborhoodSize = nnbrs;
 		this.models = new ModelsManager();
+		this.models.addModel(contModel, 1.0);
 		this.models.addModel(cosModel, 1.0);
 		this.models.addModel(coOccModel, 1.0);
 	}
