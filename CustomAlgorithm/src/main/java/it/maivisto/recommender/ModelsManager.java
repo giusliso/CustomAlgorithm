@@ -6,7 +6,7 @@ import java.util.Set;
 import org.grouplens.lenskit.knn.item.model.ItemItemModel;
 
 /**
- * Class to store different models
+ * Manage different models
  */
 public class ModelsManager {
 
@@ -18,12 +18,13 @@ public class ModelsManager {
 		mapWeight = new HashMap<Integer, Double>();
 	}
 	
+
 	public void addModel(ItemItemModel model, double weight){
 		int id = getFreeId();
 		mapModel.put(id, model);
 		mapWeight.put(id, weight);
 	}
-	
+
 	public double getModelWeight(int modelId){
 		return mapWeight.get(modelId);
 	}

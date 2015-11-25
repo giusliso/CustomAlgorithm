@@ -21,7 +21,8 @@ import org.slf4j.LoggerFactory;
 
 import com.google.common.base.Stopwatch;
 
-import it.maivisto.utility.SerializeModel;
+import it.maivisto.utility.Config;
+import it.maivisto.utility.Serializer;
 import it.unimi.dsi.fastutil.longs.Long2ObjectMap;
 import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.longs.LongBidirectionalIterator;
@@ -43,13 +44,15 @@ public class ItemContentMatrixModelBuilder implements Provider<ItemItemModel> {
 		this.context = context;
 	}
 
-
+	/**
+	 * Create the item-content matrix.
+	 */
 	@Override
 	public ItemItemModel get() {
 
-		SerializeModel serial = new SerializeModel();
+		Serializer serializer = new Serializer();
 
-		ItemContentMatrixModel model = (ItemContentMatrixModel) serial.deSerializeModel("ItemContentMatrixModel");
+		ItemContentMatrixModel model = (ItemContentMatrixModel) serializer.deserialize(Config.dirSerialModel, "ItemContentMatrixModel");
 
 		if(model==null) {
 			LongSortedSet allItems = context.getItems();
@@ -100,7 +103,7 @@ public class ItemContentMatrixModelBuilder implements Provider<ItemItemModel> {
 				logger.info("built model for {} items in {}", ndone, timer);
 
 				model = new ItemContentMatrixModel(finishRows(rows));				
-				serial.serializeModel(model,"ItemContentMatrixModel");
+				serializer.serialize(Config.dirSerialModel,model,"ItemContentMatrixModel");
 
 			} catch (Exception e) {
 				logger.error(e.getStackTrace().toString());

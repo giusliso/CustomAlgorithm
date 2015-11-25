@@ -12,8 +12,6 @@ import org.grouplens.lenskit.ItemScorer;
 import org.grouplens.lenskit.basic.AbstractItemRecommender;
 import org.grouplens.lenskit.data.dao.EventDAO;
 import org.grouplens.lenskit.data.dao.ItemDAO;
-import org.grouplens.lenskit.data.dao.PrefetchingUserDAO;
-import org.grouplens.lenskit.data.dao.UserDAO;
 import org.grouplens.lenskit.data.dao.UserEventDAO;
 import org.grouplens.lenskit.data.event.Rating;
 import org.grouplens.lenskit.data.history.UserHistory;
@@ -31,6 +29,7 @@ import it.maivisto.qualifiers.CoOccurrenceModel;
 import it.maivisto.qualifiers.CosineSimilarityModel;
 import it.maivisto.qualifiers.ItemContentSimilarityModel;
 import it.maivisto.recommender.RecommendationTriple;
+import it.maivisto.utility.Utilities;
 import it.unimi.dsi.fastutil.longs.Long2DoubleArrayMap;
 import it.unimi.dsi.fastutil.longs.LongArrayList;
 import it.unimi.dsi.fastutil.longs.LongList;
@@ -66,7 +65,15 @@ public class SeedRecommender extends AbstractItemRecommender {
 	}
 
 
-
+	/**
+     * Recommend a list of item to a user
+     * @param user The user ID.
+     * @param n The number of recommendations to produce, or a negative value to produce unlimited recommendations.
+     * @param candidates The candidate items
+     * @param exclude The exclude set
+     * @return The result list.
+     * @see #recommend(long, int, Set, Set)
+     */
 	@Override
 	protected List<ScoredId> recommend(long user, int n, LongSet candidates, LongSet excludes) {
 		UserHistory<Rating> userHistory = uedao.getEventsForUser(user, Rating.class);
@@ -75,7 +82,6 @@ public class SeedRecommender extends AbstractItemRecommender {
 		else
 			return noColdStartSituationAlgorithm(user, n);	
 	}
-
 
 	/**
 	 * Implements the algorithm to use in case of cold start situation (i.e. user ratings < 20).
@@ -87,12 +93,12 @@ public class SeedRecommender extends AbstractItemRecommender {
 
 		UserHistory<Rating> userHistory = uedao.getEventsForUser(user, Rating.class);
 
-		logger.debug("[ User {} rated {} items --> Cold Start situation ]", user, ((userHistory != null) ? userHistory.size() : 0));
+		logger.info("User {} rated {} items --> Cold Start situation", user, ((userHistory != null) ? userHistory.size() : 0));
 
 		LinkedList<RecommendationTriple> reclist = new LinkedList<RecommendationTriple>();
 		Set<Long> recItemsSet = new HashSet<Long>();
 
-		Long2DoubleArrayMap seedMap = new Long2DoubleArrayMap();
+		Long2DoubleArrayMap seedMap = new Long2DoubleArrayMap(); // <itemId,score>
 
 		if(this.activate_standard_seed) {
 			SeedItemSet set = new SeedItemSet(dao);
@@ -103,36 +109,35 @@ public class SeedRecommender extends AbstractItemRecommender {
 
 				// if user hasn't rated the seed yet, add it to recommendations list
 				if(!hasRatedItem(userHistory, seed)){
+					// there is no origin similarity matrix for standard seed items. 
+					// We set matID=-1 and weight=1
 					reclist.add(new RecommendationTriple(seed, score, -1)); 
 					recItemsSet.add(seed);
-					logger.debug("Standard seed {} added with score {}", seed, score);
+					logger.info("Standard seed {} added with score {}", seed, score);
 				}
-				// per i seed standard non c'è una matrice di provenienza. ----------------------------------------
-				// associamo matID= -1 e diamo peso pari a 1
 			}
 
-			logger.debug("Added standard seeds");
+			logger.info("Added standard seeds");
 		}
 
-		// aggiungo i seeds esterni se ci sono 
+		// add external seed items, if available 
 		if(this.seed_itemset != null) {
 			for (long seed : seed_itemset)
 				if(!seedMap.containsKey(seed)) {
 					double score = scorer.score(user, seed);
 					seedMap.put(seed, score);		
-					logger.debug("Added seed {} from seed_itemset", seed);
+					logger.info("Added seed {} from seed_itemset", seed);
 				}
 		}
 
-		//prendo i positivi e gli aggiungo a seedmap e seeds
+		// add positive user ratings to seedmap
 		if(userHistory != null) {			
-			double meanUserRating = meanValue(userHistory);
-			logger.debug("Ratings mean value for user {}: {}", user, meanUserRating);
+			double meanUserRating = Utilities.meanValue(userHistory);
+			logger.info("Ratings mean value for user {}: {}", user, meanUserRating);
 			for(Rating rate : userHistory)
 				if(rate.getValue() >= meanUserRating)
 					seedMap.put(rate.getItemId(),rate.getValue());			
 		}
-
 
 		int k=0;
 		int neighsSize = Integer.MAX_VALUE;
@@ -149,7 +154,7 @@ public class SeedRecommender extends AbstractItemRecommender {
 						Long i = neighs.get(k);
 						if (!seedMap.containsKey(i) ) {
 
-							double simISnorm = normalize(-1, 1, neighbors.get(i), 0, 1); /// SISTEMARE...............................................
+							double simISnorm = Utilities.normalize(-1, 1, neighbors.get(i), 0, 1); /// SISTEMARE...............................................
 							if(model instanceof CoOccurrenceMatrixModel)
 								simISnorm = neighbors.get(i);
 
@@ -175,37 +180,33 @@ public class SeedRecommender extends AbstractItemRecommender {
 	private List<ScoredId> noColdStartSituationAlgorithm(long user, int n){
 		UserHistory<Rating> userHistory = uedao.getEventsForUser(user, Rating.class);
 
-		logger.debug("[ User {} rated {} items --> Not in Cold Start situation ]", user, userHistory.size());
+		logger.info("[ User {} rated {} items --> Not in Cold Start situation ]", user, userHistory.size());
 
 		TopNScoredItemAccumulator reclist = new TopNScoredItemAccumulator(n);		
 
-		// prendo il catalogo con TUTTI gli item
+		// set of all items (catalog)
 		LongSet recommendableItems = idao.getItemIds();
 
-		Long2DoubleArrayMap seedMap = new Long2DoubleArrayMap();
+		Long2DoubleArrayMap seedMap = new Long2DoubleArrayMap(); // consider external seed items and rated items by user to score recommendable items
 
-		// considero i seeds esterni se ci sono
+		// remove external seed item from catalog, if available
 		if(this.seed_itemset != null) {
 			for (long seed : seed_itemset){
-				double score = scorer.score(user, seed);
+				double score = scorer.score(user, seed);			
 				seedMap.put(seed, score);
-				// rimuovo il seed_item dal catalogo
 				recommendableItems.remove(seed);
-				logger.debug("Removed seed_item {} (score: {}) from catalog", seed, score);
+				logger.info("Removed seed_item {} (score: {}) from catalog", seed, score);
 			}
 		}
 
-		// considero i rating dell'utente 
+		// remove rated items by user from catalog
 		for (Rating rating : userHistory){
-			seedMap.put(rating.getItemId(), rating.getValue());
-			// elimino gli item votati dall'utente dal catalogo
+			seedMap.put(rating.getItemId(), rating.getValue());		
 			recommendableItems.remove(rating.getItemId());
-			logger.debug("Removed rated item {} (rate: {}) from catalog", rating.getItemId(), rating.getValue());
+			logger.info("Removed rated item {} (rate: {}) from catalog", rating.getItemId(), rating.getValue());
 		}
 
-		//prendo gli elementi del catalogo e non considero gli item votati dall'utente
-
-		logger.debug("Scoring {} items.", recommendableItems.size());
+		logger.info("Scoring {} items.", recommendableItems.size());
 		for(long itemId : recommendableItems){
 			double recscoreI=0;
 			double weightI=0; 
@@ -213,19 +214,17 @@ public class SeedRecommender extends AbstractItemRecommender {
 			for(Integer matID : matIdsSet) {
 				ItemItemModel model = models.getModel(matID);
 
-				//prendo gli "neighborhoodSize" item più vicini all'item considerato e li memorizzo in neighs
+				// get the "neighborhoodSize" neighbors of the considered item
 				SparseVector neighbors = model.getNeighbors(itemId);
-
 				LongList neighs = (!neighbors.isEmpty()) ? neighbors.keysByValue(true) : new LongArrayList();
 				int nnbrs = (neighs.size() >= neighborhoodSize) ? neighborhoodSize : neighs.size();
 				neighs = neighs.subList(0, nnbrs);
 
-				//seleziono il vicinato che si sovrappone ai seed
 				for (long neigh : neighs) {
-					//se il vicinato contiene un item presente in seedMap lo uso per il calcolo dello score di itemId
+					// intersection between neighbors and rated items
 					if(seedMap.containsKey(neigh)){
 
-						double simISnorm = normalize(-1, 1, neighbors.get(neigh), 0, 1); 
+						double simISnorm = Utilities.normalize(-1, 1, neighbors.get(neigh), 0, 1); 
 						if(model instanceof CoOccurrenceMatrixModel)
 							simISnorm = neighbors.get(neigh);
 
@@ -242,7 +241,6 @@ public class SeedRecommender extends AbstractItemRecommender {
 		return reclist.finish();
 	}
 
-
 	/**
 	 * Sorts the list of possible recommendations. 
 	 * Since the list can contain multiple instance of the same item coming from different similarity matrices, 
@@ -253,7 +251,7 @@ public class SeedRecommender extends AbstractItemRecommender {
 	 * @return The result list .
 	 */
 	private List<ScoredId> getRankedRecommendationsList(int n, List<RecommendationTriple> items){
-		logger.debug("Ranking the recommendations list");
+		logger.info("Ranking the recommendations list");
 
 		ScoredItemAccumulator recommendations = new TopNScoredItemAccumulator(n);
 
@@ -290,7 +288,7 @@ public class SeedRecommender extends AbstractItemRecommender {
 		for(OccScoreTriple item : sortedList)
 			recommendations.put(item.getItemID(), item.getScore());
 
-		logger.debug("Ranking completed");
+		logger.info("Ranking completed");
 		return recommendations.finish();
 	}
 
@@ -310,46 +308,12 @@ public class SeedRecommender extends AbstractItemRecommender {
 	}
 
 	/**
-	 * Converts the double "oldVal" from the range [oldMin,oldMax] to the range [newMin, newMax]
-	 * @param oldMin 
-	 * @param oldMax
-	 * @param oldVal
-	 * @param newMin
-	 * @param newMax
-	 * @return the normalized value of oldVal
-	 */
-	private double normalize(double oldMin, double oldMax, double oldVal, double newMin, double newMax) {
-		double scale = (newMax-newMin)/(oldMax-oldMin);
-		return newMin + ( (oldVal-oldMin) * scale );
-	}
-
-	/**
-	 * @param userHistory ratings by user
-	 * @return ratings mean value
-	 */
-	private double meanValue(UserHistory<Rating> userHistory){
-		double sum=0.0;
-		for(Rating rate : userHistory) 
-			sum += rate.getValue();
-		return sum/userHistory.size();
-	}
-
-
-
-	/**
-	 * List<ScoredId> get_recommendation_list(userID,N,seed_itemset,activate_standard_seed)
-	 * produce recommendation list di dimensione N per l�utente registrato userID, avendo in input anche 
-	 * una lista di item da utilizzare come seed esterni, ovvero come item iniziali che innescano l�algoritmo. 
-	 * Il parametro activate_standard_seed � un boolean che regola l�uso dei 4 seed standard in aggiunta a 
-	 * quelli esterni, passati come parametro. Si pu� invocare quando ad esempio un utente ha effettuato 
-	 * una ricerca, passando come seed_itemset tutto il result set oppure l�item del result set su cui userID 
-	 * ha cliccato.
-	 * 		
-	 * @param user utente a cui si vogliono fornire raccomandazioni
-	 * @param n numero di raccomandazioni
-	 * @param seed_itemset insieme di seed ulteriori
-	 * @param activate_standard_seed attiva seed standard
-	 * @return Lista di n raccomandazioni
+	 * Product recommendation list of size N for a registered user ID.
+	 * @param user the considered user
+	 * @param n number of recommendations
+	 * @param seed_itemset external seed items
+	 * @param activate_standard_seed true if standard seed must be used, false otherwise
+	 * @return the recommendations list
 	 */
 	public List<ScoredId> get_recommendation_list(long user, int n, Set<Long> seed_itemset, boolean activate_standard_seed){
 		this.seed_itemset=seed_itemset;
@@ -358,12 +322,11 @@ public class SeedRecommender extends AbstractItemRecommender {
 	}
 
 	/**
-	 * List<ScoredId> get_recommendation_list(userID,N,activate_standard_seed)
-	 * Produce recommendation list di dimensione N per l�utente registrato userID, in assenza di seed esterni. Si pu� invocare quando userID entra nella piattaforma e non ha effettuato alcuna azione. La recommendation list che si ottiene consente di avere i primi suggerimenti per userID  
-	 * @param user utente a cui si vogliono fornire raccomandazioni
-	 * @param n  numero di raccomandazioni
-	 * @param activate_standard_seed attiva seed standard
-	 * @return lista di raccomandazioni
+	 * Product recommendation list of size N for a registered user ID without external itemset.  
+	 * @param user the considered user
+	 * @param n number of recommendations
+	 * @param activate_standard_seed true if standard seed must be used, false otherwise
+	 * @return the recommendations list
 	 */
 	public List<ScoredId> get_recommendation_list(long user, int n, boolean activate_standard_seed){
 		this.activate_standard_seed=activate_standard_seed;
@@ -371,16 +334,11 @@ public class SeedRecommender extends AbstractItemRecommender {
 	}
 
 	/**
-	 * List<ScoredId> get_recommendation_list(userID,N,activate_standard_seed)
-	 * 
-	 * Produce recommendation list di dimensione N per l�utente registrato userID, in assenza di seed esterni. 
-	 * Si pu� invocare quando userID entra nella piattaforma e non ha effettuato alcuna azione.
-	 * La recommendation list che si ottiene consente di avere i primi suggerimenti per userID 
-	 *  
-	 * @param n: raccomandazioni
-	 * @param seed_itemset: insieme di seed aggiuntivi
-	 * @param activate_standard_seed: attivare seed standard
-	 * @return lista di raccomandazioni
+	 * Product recommendation list of size N for a registered user ID
+	 * @param n number of recommendations
+	 * @param seed_itemset external seed items
+	 * @param activate_standard_seed true if standard seed must be used, false otherwise
+	 * @return the recommendations list
 	 */
 	public List<ScoredId> get_recommendation_list(int n, Set<Long> seed_itemset, boolean activate_standard_seed){
 		this.seed_itemset=seed_itemset;
@@ -389,13 +347,9 @@ public class SeedRecommender extends AbstractItemRecommender {
 	}
 
 	/**
-	 * Servizio get_recommendation_list(n)
-	 * 
-	 * Produce recommendation list di dimensione N per l�utente anonimo, 
-	 * analogamente al servizio per l�utente registrato con passaggio di seed
-	 * 
-	 * @param n NUMERO RACCOMANDAZIONI
-	 * @return List<ScoredId> LISTA RACCOMANDAZIONI
+	 * Product recommendation list of size N for the anonymous user, similar to the service to the user registered with the passage of seed
+	 * @param n number of recommendations
+	 * @return the recommendations list
 	 */
 	public List<ScoredId> get_recommendation_list(int n){
 		return this.recommend(-1, n);

@@ -10,7 +10,7 @@ import org.grouplens.lenskit.vectors.SparseVector;
 import it.unimi.dsi.fastutil.longs.LongSortedSet;
 
 /**
- * Item content similarity model using a normalized in-memory similarity matrix.
+ * Item content similarity matrix.
  */
 @DefaultProvider(ItemContentMatrixModelBuilder.class)
 @Shareable
@@ -23,13 +23,20 @@ public class ItemContentMatrixModel implements Serializable, ItemItemModel {
 		model = nbrs;
 	}
 
-
+	/**
+	 * Get the set of all items in the model.
+	 * @return The set of item IDs for all items in the model.
+	 */
 	@Override
 	public LongSortedSet getItemUniverse() {	
 		return LongUtils.packedSet(model.keySet());
 	}
 
-
+	/**
+	 * Get the neighbors of an item scored by similarity. This is the corresponding row of the item-content matrix.
+	 * @param item The item to get the neighborhood for.
+	 * @return The row of the item-content matrix. If the item is unknown, an empty vector is returned.
+	 */
 	@Override
 	public SparseVector getNeighbors(long item) {
 		if (model.containsKey(item))

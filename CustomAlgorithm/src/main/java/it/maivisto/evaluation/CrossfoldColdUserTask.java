@@ -21,10 +21,15 @@ import com.google.common.io.Closer;
 
 import it.unimi.dsi.fastutil.longs.Long2IntMap;
 
+/**
+ * It extends the lenskit CrossfoldTask class and runs a custom crossfold on the data source file 
+ * and outputs the partition files. After selecting training and testing users for each partition, 
+ * it sets a certain percentage of test users in cold start condition (i.e. number of rating < 20). 
+ */
 public class CrossfoldColdUserTask extends CrossfoldTask {
 	private static final Logger logger = LoggerFactory.getLogger(CrossfoldColdUserTask.class);
 
-	private int coldPercent=30;
+	private int coldPercent=30; // default 
 
 	/**
 	 * Write train-test split files
@@ -45,9 +50,7 @@ public class CrossfoldColdUserTask extends CrossfoldTask {
 				trainWriters[i] = closer.register(CSVWriter.open(train, null));
 				testWriters[i] = closer.register(CSVWriter.open(test, null));
 			}
-
 			writeTTFiles(trainWriters, testWriters);
-
 		} catch (Throwable th) {
 			throw closer.rethrow(th);
 		} finally {

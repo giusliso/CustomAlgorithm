@@ -27,7 +27,7 @@ import it.maivisto.models.ItemContentMatrixModel;
 import it.maivisto.qualifiers.CoOccurrenceModel;
 import it.maivisto.qualifiers.CosineSimilarityModel;
 import it.maivisto.qualifiers.ItemContentSimilarityModel;
-
+import it.maivisto.utility.Config;
 
 
 public class MyMain {
@@ -35,8 +35,8 @@ public class MyMain {
 	@SuppressWarnings("unchecked")
 	public static void main(String[] args) throws RecommenderBuildException {
 
-		// load data
-		CSVDataSourceBuilder dataset = new CSVDataSourceBuilder(new File("data/ml-100k/u.data"));
+		// --- LOAD THE DATASET
+		CSVDataSourceBuilder dataset = new CSVDataSourceBuilder(new File(Config.dirData+"ml-100k"+File.separator+"u.data"));
 		dataset.setDelimiter("\t");
 		dataset.setDomain(new PreferenceDomain(1,5,1));
 		DataSource data = dataset.build();
@@ -44,37 +44,26 @@ public class MyMain {
 		// --- CONFIGURATE THE RECOMMENDER
 		LenskitConfiguration config = new LenskitConfiguration();
 
-		// data
 		config.bind(EventDAO.class).to(data.getEventDAO());
-
-		// scorer
-		//		config.bind(ItemScorer.class).to(PositiveUserMeanItemScorer.class);
 		config.bind(ItemScorer.class).to(UserMeanItemScorer.class);
 		config.bind(UserMeanBaseline.class, ItemScorer.class).to(ItemMeanRatingItemScorer.class);
 		config.set(MeanDamping.class).to(5.0);
 		config.set(NeighborhoodSize.class).to(20);
-
-
-		// models
 		config.bind(CoOccurrenceModel.class, ItemItemModel.class).to(CoOccurrenceMatrixModel.class);
 		config.bind(CosineSimilarityModel.class, ItemItemModel.class).to(SimilarityMatrixModel.class);
 		config.within(CosineSimilarityModel.class, ItemItemModel.class).bind(VectorSimilarity.class).to(CosineVectorSimilarity.class);
 		config.bind(ItemContentSimilarityModel.class, ItemItemModel.class).to(ItemContentMatrixModel.class);
-		
-		// recommender
 		config.bind(ItemRecommender.class).to(SeedRecommender.class);
 
-		// --- RECOMMENDATIONS
+		// --- RUN THE RECOMMENDER
 		LenskitRecommender rec = LenskitRecommender.build(config);
 
 		List<ScoredId> recommendations1 = ((SeedRecommender) rec.getItemRecommender()).get_recommendation_list(54321, 5, true);
 		List<ScoredId> recommendations2 = rec.getItemRecommender().recommend(12345, 5);
 		List<ScoredId> recommendations3 = rec.getItemRecommender().recommend(1, 5);
 
-		System.out.println("\nCASO = 0\n"+ recommendations1);
-		System.out.println("\nCASO < 20\n"+ recommendations2);
-		System.out.println("\nCASO >= 20\n"+ recommendations3);
-		System.out.println("\n\nFine");
-
+		System.out.println("\nRatings = 0\n"+ recommendations1);
+		System.out.println("\nRatings < 20\n"+ recommendations2);
+		System.out.println("\nRatings >= 20\n"+ recommendations3);
 	}
 }

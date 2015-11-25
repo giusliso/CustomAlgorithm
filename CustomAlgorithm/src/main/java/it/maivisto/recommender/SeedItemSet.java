@@ -19,16 +19,7 @@ import org.grouplens.lenskit.data.event.Rating;
 import org.grouplens.lenskit.data.source.DataSource;
 
 /**
- * A class to retrieve the standard seed items set. 
- * i1 â†? the most popular item, i.e. the item with the greatest number of ratings 
- * 
- * i2 â†? the most recently added item not rated yet (new item in the platform)
- * 
- * i3 â†? the last positively rated item (the last item added in the platform rated in a positive way)
- * 
- * i4 â†? the most popular item in a certain period of time (last week/month/year)
- * 
- * An item is "positive rated" if its rate is equals or greater than the global mean of all ratings.
+ * Class to retrieve the standard seed items set. 
  */
 public class SeedItemSet {
 
@@ -58,6 +49,9 @@ public class SeedItemSet {
 		find();
 	}
 
+	/**
+	 * Retrieve the four standard seed items.
+	 */
 	private void find() {
 		addItem(getMostPopularItem(Period.EVER));
 		addItem(getMostPopularItem(Period.LAST_WEEK));
@@ -65,15 +59,28 @@ public class SeedItemSet {
 		addItem(getLastItemAddedNotRated());
 	}
 
+	/**
+	 * Add an item to the standard seed items set.
+	 * @param item the item to add
+	 */
 	private void addItem(Long item){
 		if(item != null)
 			set.add(item);
 	}
 
+	/**
+	 * @return the standard seed items set
+	 */
 	public Set<Long> getSeedItemSet() {
 		return set;
 	}
 
+	/**
+	 * Get the most popular item, i.e. the item with the greatest number of ratings, in a certain period of time (last week/month/year/ever).
+	 * @param period period of time to consider
+	 * @return the most popular item
+	 */
+	@SuppressWarnings("deprecation")
 	private Long getMostPopularItem(Period period) {
 		Calendar cal = Calendar.getInstance();
 		cal.setTime(getLastTimestamp()); 
@@ -114,6 +121,10 @@ public class SeedItemSet {
 		return idItemMostPopular;
 	}
 
+	/**
+	 * Get the timestamp of the first rating in the dataset
+	 * @return the timestamp
+	 */
 	private Date getFirstTimestamp(){
 
 		if(firstTimestamp == null){
@@ -127,7 +138,10 @@ public class SeedItemSet {
 		return firstTimestamp;
 	}
 
-
+	/**
+	 * Get the timestamp of the last rating in the dataset
+	 * @return the timestamp
+	 */
 	private Date getLastTimestamp(){
 
 		if(lastTimestamp == null){
@@ -143,7 +157,12 @@ public class SeedItemSet {
 
 
 
+	/**
+	 * Get the last positively rated item (the last item added in the platform rated in a positive way).
+	 * An item is "positively rated" if its rate is equals or greater than the global mean of all ratings.
 
+	 * @return the last positively rated item
+	 */
 	private Long getLastPositivelyRatedItem(){
 		Long lastPositivelyRatedItem = null;
 		Date recentDate = getFirstTimestamp(); 
@@ -175,7 +194,10 @@ public class SeedItemSet {
 	}
 
 
-
+	/**
+	 * Get the most recently added item not rated yet (new item in the platform).
+	 * @return the most recently added item not rated yet
+	 */
 	private Long getLastItemAddedNotRated(){
 		Long lastItemAdded = null;
 		Date threshold = null;

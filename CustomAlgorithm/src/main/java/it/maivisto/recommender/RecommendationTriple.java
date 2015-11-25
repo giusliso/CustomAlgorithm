@@ -1,5 +1,11 @@
 package it.maivisto.recommender;
 
+/**
+ * A set of three elements:
+ * - the item ID
+ * - the score for that item
+ * - the id of matrix that has recommended the item
+ */
 public class RecommendationTriple {
 	private long itemID;
 	private double score;

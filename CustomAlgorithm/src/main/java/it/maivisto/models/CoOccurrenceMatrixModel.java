@@ -10,7 +10,7 @@ import org.grouplens.lenskit.vectors.SparseVector;
 import it.unimi.dsi.fastutil.longs.LongSortedSet;
 
 /**
- * Co-occurrence model using a normalized in-memory co-occurrence matrix.
+ * Co-occurrence matrix.
  */
 @DefaultProvider(CoOccurrenceMatrixModelBuilder.class)
 @Shareable
@@ -23,13 +23,20 @@ public class CoOccurrenceMatrixModel implements Serializable, ItemItemModel {
 		model = nbrs;
 	}
 
-
+	/**
+     * Get the set of all items in the model.
+     * @return The set of item IDs for all items in the model.
+     */
 	@Override
 	public LongSortedSet getItemUniverse() {	
 		return LongUtils.packedSet(model.keySet());
 	}
 
-
+	/**
+     * Get the neighbors of an item scored by similarity. This is the corresponding row of the co-occurrence matrix.
+     * @param item The item to get the neighborhood for.
+     * @return The row of the co-occurrence matrix. If the item is unknown, an empty vector is returned.
+     */
 	@Override
 	public SparseVector getNeighbors(long item) {
 		if (model.containsKey(item))
@@ -37,6 +44,4 @@ public class CoOccurrenceMatrixModel implements Serializable, ItemItemModel {
 		else
 			return ImmutableSparseVector.empty();
 	}
-
-
 }

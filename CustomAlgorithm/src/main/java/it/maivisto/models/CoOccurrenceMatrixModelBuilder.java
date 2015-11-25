@@ -18,7 +18,8 @@ import org.slf4j.LoggerFactory;
 
 import com.google.common.base.Stopwatch;
 
-import it.maivisto.utility.SerializeModel;
+import it.maivisto.utility.Config;
+import it.maivisto.utility.Serializer;
 import it.unimi.dsi.fastutil.longs.Long2ObjectMap;
 import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.longs.LongBidirectionalIterator;
@@ -40,14 +41,16 @@ public class CoOccurrenceMatrixModelBuilder implements Provider<ItemItemModel> {
 		this.context = context;
 	}
 
-
+	/**
+	 * Create the co-occurrence matrix.
+	 */
 	@Override
 	public ItemItemModel get() {
 		int max = 0;
 
-		SerializeModel serial=new SerializeModel();
+		Serializer serializer=new Serializer();
 
-		CoOccurrenceMatrixModel model=(CoOccurrenceMatrixModel) serial.deSerializeModel("CoOccurrenceMatrixModel");
+		CoOccurrenceMatrixModel model=(CoOccurrenceMatrixModel) serializer.deserialize(Config.dirSerialModel, "CoOccurrenceMatrixModel");
 		if(model==null){
 
 			LongSortedSet allItems = context.getItems();
@@ -96,12 +99,12 @@ public class CoOccurrenceMatrixModelBuilder implements Provider<ItemItemModel> {
 				rows.put(i, acc);
 			}
 			logger.info("normalized item-item model");		
-			
+
 			timer.stop();
 			logger.info("built model for {} items in {}", ndone, timer);
-			
+
 			model=new CoOccurrenceMatrixModel(finishRows(rows));			
-			serial.serializeModel(model,"CoOccurrenceMatrixModel");
+			serializer.serialize(Config.dirSerialModel,model,"CoOccurrenceMatrixModel");
 		}
 
 		return model;
