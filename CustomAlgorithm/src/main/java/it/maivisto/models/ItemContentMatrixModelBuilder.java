@@ -28,6 +28,7 @@ import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.longs.LongBidirectionalIterator;
 import it.unimi.dsi.fastutil.longs.LongSet;
 import it.unimi.dsi.fastutil.longs.LongSortedSet;
+import ts.evaluation.TSinstance;
 import ts.evaluation.impl.VincenteTS;
 
 /**
@@ -65,10 +66,12 @@ public class ItemContentMatrixModelBuilder implements Provider<ItemItemModel> {
 
 			Long2ObjectMap<ScoredItemAccumulator> rows = makeAccumulators(allItems);
 			
-			VincenteTS valueSim = null;
+//			VincenteTS valueSim = null;
+			STS valueSim = null;
 			try {
-				valueSim = new VincenteTS("lib/TextualSimilarity/config/config.properties","lib/TextualSimilarity/config/stacking.xml");
-
+//				valueSim = new VincenteTS("lib/TextualSimilarity/config/config.properties","lib/TextualSimilarity/config/stacking.xml");
+				valueSim = new STS("lib/TextualSimilarity/config/config.properties","lib/TextualSimilarity/config/stacking.xml");
+				
 				Stopwatch timer = Stopwatch.createStarted();
 				int ndone=1;
 				for(LongBidirectionalIterator itI = allItems.iterator(); itI.hasNext() ; ) {
@@ -83,8 +86,9 @@ public class ItemContentMatrixModelBuilder implements Provider<ItemItemModel> {
 						String contentI = icMap.get(i);
 						String contentJ = icMap.get(j);
 
-						double simIJ = valueSim.computeSimilarity(contentI, contentJ).getValue("stacking"); 
-
+//						double simIJ = valueSim.computeSimilarity(contentI, contentJ).getValue("stacking"); 
+						double simIJ = valueSim.computeSimilarities(contentI, contentJ).getFeatureSet().getValue("dsmCompSUM-ri");
+											
 						rows.get(i).put(j, simIJ);
 						rows.get(j).put(i, simIJ);
 						
