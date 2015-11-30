@@ -3,6 +3,7 @@ import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileReader;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.concurrent.TimeUnit;
 
@@ -22,6 +23,7 @@ import org.slf4j.LoggerFactory;
 import com.google.common.base.Stopwatch;
 
 import it.maivisto.utility.Config;
+import it.maivisto.utility.STS;
 import it.maivisto.utility.Serializer;
 import it.unimi.dsi.fastutil.longs.Long2ObjectMap;
 import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
@@ -39,7 +41,7 @@ public class ItemContentMatrixModelBuilder implements Provider<ItemItemModel> {
 	private static final Logger logger = LoggerFactory.getLogger(ItemContentMatrixModelBuilder.class);
 
 	private final ItemItemBuildContext context;
-
+	private int threadCount=0;
 	@Inject
 	public ItemContentMatrixModelBuilder(@Transient ItemItemBuildContext context) {
 		this.context = context;
@@ -58,20 +60,26 @@ public class ItemContentMatrixModelBuilder implements Provider<ItemItemModel> {
 		if(model==null) {
 			LongSortedSet allItems = context.getItems();
 			int nitems = allItems.size();
-			
+
 			HashMap<Long,String> icMap = getItemsContentMap();
 
 			logger.info("building item-content similarity model for {} items", nitems);
 			logger.info("item-content similarity model is symmetric");
 
 			Long2ObjectMap<ScoredItemAccumulator> rows = makeAccumulators(allItems);
-			
-//			VincenteTS valueSim = null;
+
+			//			VincenteTS valueSim = null;
 			STS valueSim = null;
 			try {
-//				valueSim = new VincenteTS("lib/TextualSimilarity/config/config.properties","lib/TextualSimilarity/config/stacking.xml");
-				valueSim = new STS("lib/TextualSimilarity/config/config.properties","lib/TextualSimilarity/config/stacking.xml");
-				
+				//				valueSim = new VincenteTS("lib/TextualSimilarity/config/config.properties","lib/TextualSimilarity/config/stacking.xml");
+
+				//istanzio la classe STS per il numero di thread che vogòlio eseguire contemporaneamente
+				ArrayList<STS> calcSim=new ArrayList();
+				for(int z=0;z<=4;z++){
+					valueSim = new STS("lib/TextualSimilarity/config/config.properties","lib/TextualSimilarity/config/stacking.xml");
+					calcSim.add(valueSim);
+					System.out.println("caricato:"+z);
+				}
 				Stopwatch timer = Stopwatch.createStarted();
 				int ndone=1;
 				for(LongBidirectionalIterator itI = allItems.iterator(); itI.hasNext() ; ) {
@@ -85,14 +93,34 @@ public class ItemContentMatrixModelBuilder implements Provider<ItemItemModel> {
 
 						String contentI = icMap.get(i);
 						String contentJ = icMap.get(j);
-
+						/*
+						 * 
 //						double simIJ = valueSim.computeSimilarity(contentI, contentJ).getValue("stacking"); 
 						double simIJ = valueSim.computeSimilarities(contentI, contentJ).getFeatureSet().getValue("dsmCompSUM-ri");
-											
+
 						rows.get(i).put(j, simIJ);
-						rows.get(j).put(i, simIJ);
-						
+						rows.get(j).put(i, simIJ); 
 						logger.info("computed content similarity sim({},{}) = sim({},{}) = {}", i, j, j, i, simIJ);
+						 */
+
+						//creo thread
+						int threadInstance=threadCount;
+						itemContentThread thread=new itemContentThread(calcSim.get(threadInstance),contentI,contentJ,i,j,rows,this);
+						thread.start();
+						this.threadCount++;
+
+
+
+						//attendo che i thread che calcolano la similarità terminino 
+						//la loro esecuzione e poi riprendo il ciclo
+						if(threadCount==5){
+							while(threadCount!=0){
+								Thread t=new Thread();
+								t.sleep(0);
+							}
+						} 
+
+
 					}
 
 					if (logger.isDebugEnabled() && ndone % 100 == 0) 
@@ -157,5 +185,12 @@ public class ItemContentMatrixModelBuilder implements Provider<ItemItemModel> {
 		for (Long2ObjectMap.Entry<ScoredItemAccumulator> e: rows.long2ObjectEntrySet()) 
 			results.put(e.getLongKey(), e.getValue().finishVector().freeze());      
 		return results;
+	}
+
+
+	public void decrementThread(){
+
+		this.threadCount--;
+		logger.debug("decremented thread {}",threadCount);
 	}
 }
