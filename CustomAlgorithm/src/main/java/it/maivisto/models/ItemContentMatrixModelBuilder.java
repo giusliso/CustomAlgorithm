@@ -77,7 +77,7 @@ public class ItemContentMatrixModelBuilder implements Provider<ItemItemModel> {
 
 				//istanzio la classe STS per il numero di thread che vogòlio eseguire contemporaneamente
 				ArrayList<STS> calcSim=new ArrayList();
-				for(int z=0;z<=4;z++){
+				for(int z=0;z<=5;z++){
 					valueSim = new STS("lib/TextualSimilarity/config/config.properties","lib/TextualSimilarity/config/stacking.xml");
 					calcSim.add(valueSim);
 					System.out.println("caricato:"+z);
@@ -115,7 +115,7 @@ public class ItemContentMatrixModelBuilder implements Provider<ItemItemModel> {
 
 						//attendo che i thread che calcolano la similarità terminino 
 						//la loro esecuzione e poi riprendo il ciclo
-						if(threadCount==5){
+						if(threadCount==6){ 
 							while(threadCount!=0){
 								Thread t=new Thread();
 								t.sleep(0);
