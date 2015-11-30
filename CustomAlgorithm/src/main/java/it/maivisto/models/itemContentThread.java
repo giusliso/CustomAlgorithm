@@ -19,11 +19,10 @@ public class itemContentThread extends Thread {
 	private String contentJ;
 	private long i;
 	private long j;
-	private Long2ObjectMap<ScoredItemAccumulator> rows;
 	private ItemContentMatrixModelBuilder matContent;
 
 	itemContentThread(STS valueSim,String contentI,String contentJ,long i,long j,
-			Long2ObjectMap<ScoredItemAccumulator> rows,ItemContentMatrixModelBuilder matContent){
+			ItemContentMatrixModelBuilder matContent){
 
 
 		this.valueSim=valueSim;
@@ -31,7 +30,6 @@ public class itemContentThread extends Thread {
 		this.contentJ=contentJ;
 		this.i=i;
 		this.j=j;
-		this.rows=rows;
 		this.matContent=matContent;
 
 	}
@@ -41,8 +39,8 @@ public class itemContentThread extends Thread {
 			logger.info("Start thread for similarity: {} : {}",i,j);
 			double simIJ = valueSim.computeSimilarities(contentI, contentJ).getFeatureSet().getValue("dsmCompSUM-ri");
 
-			rows.get(i).put(j, simIJ);
-			rows.get(j).put(i, simIJ);
+			
+			matContent.updateRows(i, j,simIJ);
 			
 			logger.info("computed content similarity sim({},{}) = sim({},{}) = {}", i, j, j, i, simIJ);
 			

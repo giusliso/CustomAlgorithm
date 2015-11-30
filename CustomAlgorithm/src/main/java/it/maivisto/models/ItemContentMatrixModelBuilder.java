@@ -5,6 +5,7 @@ import java.io.FileReader;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.concurrent.TimeUnit;
 
 import javax.annotation.concurrent.NotThreadSafe;
@@ -42,6 +43,7 @@ public class ItemContentMatrixModelBuilder implements Provider<ItemItemModel> {
 
 	private final ItemItemBuildContext context;
 	private int threadCount=0;
+	private Long2ObjectMap<ScoredItemAccumulator> rows;
 	@Inject
 	public ItemContentMatrixModelBuilder(@Transient ItemItemBuildContext context) {
 		this.context = context;
@@ -66,7 +68,7 @@ public class ItemContentMatrixModelBuilder implements Provider<ItemItemModel> {
 			logger.info("building item-content similarity model for {} items", nitems);
 			logger.info("item-content similarity model is symmetric");
 
-			Long2ObjectMap<ScoredItemAccumulator> rows = makeAccumulators(allItems);
+			rows = makeAccumulators(allItems);
 
 			//			VincenteTS valueSim = null;
 			STS valueSim = null;
@@ -105,7 +107,7 @@ public class ItemContentMatrixModelBuilder implements Provider<ItemItemModel> {
 
 						//creo thread
 						int threadInstance=threadCount;
-						itemContentThread thread=new itemContentThread(calcSim.get(threadInstance),contentI,contentJ,i,j,rows,this);
+						itemContentThread thread=new itemContentThread(calcSim.get(threadInstance),contentI,contentJ,i,j,this);
 						thread.start();
 						this.threadCount++;
 
@@ -192,5 +194,11 @@ public class ItemContentMatrixModelBuilder implements Provider<ItemItemModel> {
 
 		this.threadCount--;
 		logger.debug("decremented thread {}",threadCount);
+	}
+	//aggiorna matrice con il valore di similarità computato dal thread
+	public void updateRows(long i,long j,double simIJ){
+		rows.get(i).put(j, simIJ);
+		rows.get(j).put(i, simIJ);
+	
 	}
 }
