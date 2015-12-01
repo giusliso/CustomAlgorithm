@@ -45,6 +45,7 @@ public class itemContentThread extends Thread {
 			logger.info("computed content similarity sim({},{}) = sim({},{}) = {}", i, j, j, i, simIJ);
 			
 			matContent.decrementThread();
+		
 
 		} catch (IOException e) {
 			// TODO Auto-generated catch block

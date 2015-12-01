@@ -67,9 +67,9 @@ public class ItemContentMatrixModelBuilder implements Provider<ItemItemModel> {
 
 			logger.info("building item-content similarity model for {} items", nitems);
 			logger.info("item-content similarity model is symmetric");
-			
+
 			rows = makeAccumulators(allItems);
-			
+
 			//			VincenteTS valueSim = null;
 			STS valueSim = null;
 			try {
@@ -124,7 +124,19 @@ public class ItemContentMatrixModelBuilder implements Provider<ItemItemModel> {
 
 
 					}
-
+					
+					//finalizzazione nel caso ci sono thread ancora in esecuzione, ne attende la fine
+					if(threadCount>0){
+						logger.debug("ending...");
+						while(threadCount!=0){
+							
+							Thread t=new Thread();
+							t.sleep(0);
+						}
+						
+					}
+					
+					
 					if (logger.isDebugEnabled() && ndone % 100 == 0) 
 						logger.info("computed {} of {} model rows ({}s/row)", 
 								ndone, nitems, 
@@ -132,6 +144,7 @@ public class ItemContentMatrixModelBuilder implements Provider<ItemItemModel> {
 
 					ndone++;
 				}
+
 
 				timer.stop();
 				logger.info("built model for {} items in {}", ndone, timer);
@@ -199,7 +212,7 @@ public class ItemContentMatrixModelBuilder implements Provider<ItemItemModel> {
 	public void updateRows(long i,long j,double simIJ){
 		rows.get(i).put(j, simIJ);
 		rows.get(j).put(i, simIJ);
-		
-	
+
+
 	}
 }
