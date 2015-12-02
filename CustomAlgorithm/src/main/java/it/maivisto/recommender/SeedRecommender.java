@@ -24,7 +24,6 @@ import org.grouplens.lenskit.vectors.SparseVector;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import it.maivisto.models.CoOccurrenceMatrixModel;
 import it.maivisto.qualifiers.CoOccurrenceModel;
 import it.maivisto.qualifiers.CosineSimilarityModel;
 import it.maivisto.qualifiers.ItemContentSimilarityModel;
@@ -72,7 +71,6 @@ public class SeedRecommender extends AbstractItemRecommender {
      * @param candidates The candidate items
      * @param exclude The exclude set
      * @return The result list.
-     * @see #recommend(long, int, Set, Set)
      */
 	@Override
 	protected List<ScoredId> recommend(long user, int n, LongSet candidates, LongSet excludes) {
@@ -153,11 +151,7 @@ public class SeedRecommender extends AbstractItemRecommender {
 						LongArrayList neighs = neighbors.keysByValue(true);
 						Long i = neighs.get(k);
 						if (!seedMap.containsKey(i) ) {
-
-							double simISnorm = Utilities.normalize(-1, 1, neighbors.get(i), 0, 1); /// SISTEMARE...............................................
-							if(model instanceof CoOccurrenceMatrixModel)
-								simISnorm = neighbors.get(i);
-
+							double simISnorm = neighbors.get(i);
 							double scoreSeed = seedMap.get(s);
 							reclist.add(new RecommendationTriple(i, simISnorm*scoreSeed, matID));
 							recItemsSet.add(i);
@@ -223,13 +217,8 @@ public class SeedRecommender extends AbstractItemRecommender {
 				for (long neigh : neighs) {
 					// intersection between neighbors and rated items
 					if(seedMap.containsKey(neigh)){
-
-						double simISnorm = Utilities.normalize(-1, 1, neighbors.get(neigh), 0, 1); 
-						if(model instanceof CoOccurrenceMatrixModel)
-							simISnorm = neighbors.get(neigh);
-
+						double simISnorm = neighbors.get(neigh);
 						double scoreSeed = seedMap.get(neigh);
-
 						recscoreI += simISnorm*scoreSeed*models.getModelWeight(matID);
 						weightI += models.getModelWeight(matID);
 					}
