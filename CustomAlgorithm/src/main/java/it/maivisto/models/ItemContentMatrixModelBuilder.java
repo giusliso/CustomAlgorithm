@@ -48,7 +48,11 @@ public class ItemContentMatrixModelBuilder implements Provider<ItemItemModel> {
 	public ItemContentMatrixModelBuilder(@Transient ItemItemBuildContext context) {
 		this.context = context;
 	}
-
+	private LongSortedSet allItems;
+	private HashMap<Long,String> icMap;
+	private int ndone=0;
+	private int nitems=0;
+	private int ntreads=5;
 	/**
 	 * Create the item-content matrix.
 	 */
@@ -60,105 +64,74 @@ public class ItemContentMatrixModelBuilder implements Provider<ItemItemModel> {
 		ItemContentMatrixModel model = (ItemContentMatrixModel) serializer.deserialize(Config.dirSerialModel, "ItemContentMatrixModel");
 
 		if(model==null) {
-			LongSortedSet allItems = context.getItems();
-			int nitems = allItems.size();
+			allItems = context.getItems();
+			nitems = allItems.size();
 
-			HashMap<Long,String> icMap = getItemsContentMap();
+			icMap = getItemsContentMap();
 
 			logger.info("building item-content similarity model for {} items", nitems);
 			logger.info("item-content similarity model is symmetric");
 
 			rows = makeAccumulators(allItems);
 
-			//			VincenteTS valueSim = null;
-			STS valueSim = null;
-			try {
-				//				valueSim = new VincenteTS("lib/TextualSimilarity/config/config.properties","lib/TextualSimilarity/config/stacking.xml");
-
-				//istanzio la classe STS per il numero di thread che vog√≤lio eseguire contemporaneamente
-				ArrayList<STS> calcSim=new ArrayList();
-				for(int z=0;z<=5;z++){
-					valueSim = new STS("lib/TextualSimilarity/config/config.properties","lib/TextualSimilarity/config/stacking.xml");
-					calcSim.add(valueSim);
-					System.out.println("caricato:"+z);
-				}
-				Stopwatch timer = Stopwatch.createStarted();
-				int ndone=1;
-				for(LongBidirectionalIterator itI = allItems.iterator(); itI.hasNext() ; ) {
-					Long i = itI.next();
-
-					if (logger.isDebugEnabled()) 
-						logger.info("computing similarities for item {} ({} of {})", i, ndone, nitems);
-
-					for(LongBidirectionalIterator itJ = allItems.iterator(i); itJ.hasNext(); ) {
-						Long j = itJ.next();
-
-						String contentI = icMap.get(i);
-						String contentJ = icMap.get(j);
-						/*
-						 * 
-//						double simIJ = valueSim.computeSimilarity(contentI, contentJ).getValue("stacking"); 
-						double simIJ = valueSim.computeSimilarities(contentI, contentJ).getFeatureSet().getValue("dsmCompSUM-ri");
-
-						rows.get(i).put(j, simIJ);
-						rows.get(j).put(i, simIJ); 
-						logger.info("computed content similarity sim({},{}) = sim({},{}) = {}", i, j, j, i, simIJ);
-						 */
-
-						//creo thread
-						int threadInstance=threadCount;
-						itemContentThread thread=new itemContentThread(calcSim.get(threadInstance),contentI,contentJ,i,j,this);
-						thread.start();
-						this.threadCount++;
-
-
-
-						//attendo che i thread che calcolano la similarit√† terminino 
-						//la loro esecuzione e poi riprendo il ciclo
-						if(threadCount==6){ 
-							while(threadCount!=0){
-								Thread t=new Thread();
-								t.sleep(0);
-							}
-						} 
-
-
-					}
-					
-					//finalizzazione nel caso ci sono thread ancora in esecuzione, ne attende la fine
-					if(threadCount>0){
-						logger.debug("ending...");
-						while(threadCount!=0){
-							
-							Thread t=new Thread();
-							t.sleep(0);
-						}
-						
-					}
-					
-					
-					if (logger.isDebugEnabled() && ndone % 100 == 0) 
-						logger.info("computed {} of {} model rows ({}s/row)", 
-								ndone, nitems, 
-								String.format("%.3f", timer.elapsed(TimeUnit.MILLISECONDS) * 0.001 / ndone));
-
-					ndone++;
-				}
-
-
-				timer.stop();
-				logger.info("built model for {} items in {}", ndone, timer);
-
-				model = new ItemContentMatrixModel(finishRows(rows));				
-				serializer.serialize(Config.dirSerialModel,model,"ItemContentMatrixModel");
-
-			} catch (Exception e) {
-				logger.error(e.getStackTrace().toString());
+			ArrayList threads=new ArrayList();
+			//divido il dataset in intervalli e li asstegno ai threads
+			for(int z=0;z<ntreads;z++){
+				this.threadCount+=1;
+				threads.add(new itemContentThread());
 			}
+
+			//assegno le partizioni ai threads
+			this.definePartition(threads);
+
+			//faccio partire i threads
+			for(int z=0;z<threads.size();z++)
+				((itemContentThread) threads.get(z)).start();
+
+			Stopwatch timer = Stopwatch.createStarted();
+			ndone=1;
+
+
+			//finalizzazione nel caso ci sono thread ancora in esecuzione, ne attende la fine
+			
+			if(threadCount!=0){
+				logger.debug("waiting {} threads..",threadCount);
+				while(threadCount!=0){
+					Thread t=new Thread();
+					try {
+						t.sleep(0);
+					} catch (InterruptedException e) {
+						// TODO Auto-generated catch block
+						e.printStackTrace();
+					}
+				}
+
+			}
+
+
+			if (logger.isDebugEnabled() && ndone % 100 == 0) 
+				logger.info("computed {} of {} model rows ({}s/row)", 
+						ndone, nitems, 
+						String.format("%.3f", timer.elapsed(TimeUnit.MILLISECONDS) * 0.001 / ndone));
+
+		
+
+
+
+			timer.stop();
+			logger.info("built model for {} items in {}", ndone, timer);
+
+			model = new ItemContentMatrixModel(finishRows(rows));				
+			serializer.serialize(Config.dirSerialModel,model,"ItemContentMatrixModel");
 		}
 
 		return model;
 	}
+
+
+
+
+
 
 
 
@@ -203,16 +176,104 @@ public class ItemContentMatrixModelBuilder implements Provider<ItemItemModel> {
 	}
 
 
+
+
+	//metodo che definisce gli intervalli da assegnare ai thread
+	private void definePartition(ArrayList threads){
+
+
+		int totElements=nitems;
+		int partition=totElements/threads.size();
+		int partProduct=(partition*threads.size());
+		int itemRest=totElements-partProduct;
+
+		int iLimitRow=0;
+		int fLimitRow=0;
+		for(int i=0;i<threads.size();i++){
+			iLimitRow=partition*i;
+			fLimitRow=partition*(i+1);
+			if(fLimitRow==partProduct)
+				fLimitRow+=itemRest;
+			itemContentThread thread=(itemContentThread) threads.get(i);
+			thread.setInterval(iLimitRow, fLimitRow);
+			
+
+		}
+		
+
+
+	}
 	public void decrementThread(){
 
 		this.threadCount--;
 		logger.debug("decremented thread {}",threadCount);
 	}
-	//aggiorna matrice con il valore di similarit‡ computato dal thread
-	public void updateRows(long i,long j,double simIJ){
-		rows.get(i).put(j, simIJ);
-		rows.get(j).put(i, simIJ);
 
+	private class itemContentThread  extends Thread {
+		private int iLimitRow;
+		private int fLimitRow;
+		@Override
+		public void run() {
+			
+			
+			STS valueSim=null;
+			try {
+				valueSim = new STS("lib/TextualSimilarity/config/config.properties","lib/TextualSimilarity/config/stacking.xml");
+			} catch (IOException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			} catch (Exception e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+			int countRow=0;
+			// TODO Auto-generated method stub
+			for(LongBidirectionalIterator itI = allItems.iterator(); itI.hasNext(); ) {
+				Long i = itI.next();
+				countRow++;
+			
+
+				//se la riga considerata Ë compresa nell'intervallo del thread
+				if(countRow>=iLimitRow && countRow<=fLimitRow){
+					if (logger.isDebugEnabled()) 
+						logger.info("computing similarities for item {} ({} of {})", i, ndone, nitems);
+					for(LongBidirectionalIterator itJ = allItems.iterator(i); itJ.hasNext(); ) {
+						Long j = itJ.next();
+
+						/*String contentI = icMap.get(i);
+						String contentJ = icMap.get(j);
+
+						//					double simIJ = valueSim.computeSimilarity(contentI, contentJ).getValue("stacking"); 
+						double simIJ = 0;
+						try {
+							simIJ = valueSim.computeSimilarities(contentI, contentJ).getFeatureSet().getValue("dsmCompSUM-ri");
+							rows.get(i).put(j, simIJ);
+							rows.get(j).put(i, simIJ); 
+							
+							logger.info("computed content similarity sim({},{}) = sim({},{}) = {}", i, j, j, i, simIJ);
+
+						} catch (Exception e) {
+							// TODO Auto-generated catch block
+							e.printStackTrace();
+						}*/
+						System.out.print(" "+i+":"+j);
+						
+
+					}
+					ndone++;
+
+				}
+				
+			}
+			decrementThread();
+		}
+
+		//setta il numero di righe che il thread dovr‡ computare
+		public void setInterval(int iLimitRow,int fLimitRow){
+			this.fLimitRow=fLimitRow;
+			this.iLimitRow=iLimitRow;
+		}
 
 	}
+
 }
