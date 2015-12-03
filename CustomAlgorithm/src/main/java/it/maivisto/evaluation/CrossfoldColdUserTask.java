@@ -3,9 +3,8 @@ import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.HashMap;
+import java.util.LinkedList;
 import java.util.List;
-
 import org.grouplens.lenskit.cursors.Cursors;
 import org.grouplens.lenskit.data.event.Rating;
 import org.grouplens.lenskit.data.history.UserHistory;
@@ -20,16 +19,25 @@ import org.slf4j.LoggerFactory;
 import com.google.common.io.Closer;
 
 import it.unimi.dsi.fastutil.longs.Long2IntMap;
+import it.unimi.dsi.fastutil.longs.Long2IntOpenHashMap;
+import it.unimi.dsi.fastutil.longs.LongArrayList;
+import it.unimi.dsi.fastutil.longs.LongListIterator;
+import it.unimi.dsi.fastutil.longs.LongLists;
 
 /**
  * It extends the lenskit CrossfoldTask class and runs a custom crossfold on the data source file 
  * and outputs the partition files. After selecting training and testing users for each partition, 
- * it sets a certain percentage of test users in cold start condition (i.e. number of rating < 20). 
+ * it sets a certain percentage of test users in cold start condition (i.e. number of rating < 20)
+ * and splits them into profile sizes from 0 to 19 ratings. 
  */
 public class CrossfoldColdUserTask extends CrossfoldTask {
 	private static final Logger logger = LoggerFactory.getLogger(CrossfoldColdUserTask.class);
 
 	private int coldPercent=30; // default 
+
+	public CrossfoldColdUserTask(String s) {
+		super(s);
+	}
 
 	/**
 	 * Write train-test split files
@@ -71,43 +79,43 @@ public class CrossfoldColdUserTask extends CrossfoldTask {
 
 		Long2IntMap splits = splitUsers(getSource().getUserDAO()); 
 
+		LinkedList<Partition> partitions = new LinkedList<Partition>();
+		for(int i=0; i<getPartitionCount(); i++)
+			partitions.add(new Partition(i,getPartitionUsers(i,splits), 30));
+
 		Holdout mode = this.getHoldout();
 		try {
-			int testUsers = getSource().getUserDAO().getUserIds().size()/getPartitionCount();
-			int csUsers = testUsers*coldPercent/100;
-			logger.info("cold start test users in each partition: {}%", coldPercent);
 
-			// map whose keys are couple < partition, cold start users in it >
-			HashMap<Integer,Integer> csUsersMap = new HashMap<Integer,Integer>(); 
-			for(int p=0; p<getPartitionCount(); p++)
-				csUsersMap.put(p,0);
+			logger.info("cold start test users in each partition: {}%", coldPercent);
 
 			ArrayList<UserHistory<Rating>> histories = Cursors.makeList(getSource().getUserEventDAO().streamEventsByUser(Rating.class));
 			Collections.shuffle(histories);
 
 			for (UserHistory<Rating> history : histories) {
-				int foldNum = splits.get(history.getUserId());
-
-				csUsersMap.put(foldNum, csUsersMap.get(foldNum)+1);
-
 				List<Rating> ratings = new ArrayList<Rating>(history);
-				final int n = ratings.size();
-				int p;// how many training ratings must have the current user
+				int trainRating=0;
 
-				if(csUsersMap.get(foldNum)<=csUsers) {
-					// for users in cold start situation
-					p = mode.partition(ratings, getProject().getRandom())%20;
-					logger.info("Partition {} has {} cold start test user with {}/{} training ratings", foldNum, history.getUserId(), p,n);
+				long user = history.getUserId();
+				int p = splits.get(history.getUserId());
+				int n = ratings.size();
+
+				Partition partition = partitions.get(p);
+				if(partition.isColdStartUser(user)) {
+					// cold start user
+					trainRating = partition.getProfileSizeForUser(user);
+					logger.info("Cold Start User {} has {} training ratings and {} test ratings", user,trainRating,n-trainRating);
 				}
-				else { // for users not in cold start situation
-					p = mode.partition(ratings, getProject().getRandom());
-					if(p<20)
-						p=20+(n-20)/2; 
+				else {
+					// no cold start user
+					trainRating = mode.partition(ratings, getProject().getRandom());
+					if(trainRating<20)
+						trainRating=20+(n-20)/2; 
+					logger.info("No Cold Start User {} has {} training ratings and {} test ratings", user,trainRating,n-trainRating);
 				}
 
 				for (int f = 0; f < getPartitionCount(); f++) {
-					if (f == foldNum) {
-						for (int j = 0; j < p; j++)
+					if (f == p) {
+						for (int j = 0; j < trainRating; j++)
 							writeRating(trainWriters[f], ratings.get(j));
 
 						for (int j = p; j < n; j++) 
@@ -123,11 +131,68 @@ public class CrossfoldColdUserTask extends CrossfoldTask {
 		}
 	}
 
+
+
 	/**
 	 * Set how many test user must be in cold start situation.
 	 * @param csPercentual cold start test user percentage 
 	 */
 	public void setColdStartCasesPercentual(int csPercentual) {
 		this.coldPercent = csPercentual;
+	}
+
+
+
+	private LinkedList<Long> getPartitionUsers(int i, Long2IntMap splits) {
+		LinkedList<Long> users = new LinkedList<Long>();
+		for(long u : splits.keySet())
+			if(splits.get(u) == i)
+				users.add(u);
+		return users;
+	}
+
+
+	class Partition {
+
+		private Long2IntMap csUsers;
+		private final int numProfiles = 20;
+		private int n_partition;
+
+		public Partition(int np, LinkedList<Long> testUsers, int percCsUsers) {
+			n_partition = np;
+			csUsers = new Long2IntOpenHashMap();
+
+			int testUsersSize = testUsers.size();
+			int csu = testUsersSize*percCsUsers/100; //csUsers in partition
+
+			Collections.shuffle(testUsers);
+			for(int i=0; i<csu; i++)
+				csUsers.put(testUsers.get(i).longValue(), 0);
+
+			logger.info("Partition {} has {} cold start users and {} no cold start users", n_partition, csUsers.keySet().size(), testUsers.size()-csUsers.keySet().size());
+
+			splitCSUsersIntoProfileSizes();
+		}
+
+		public boolean isColdStartUser(long user){
+			return csUsers.containsKey(user);
+		}
+
+		public int getProfileSizeForUser(long user){
+			return csUsers.get(user);
+		}
+
+		private void splitCSUsersIntoProfileSizes(){
+			LongArrayList users = new LongArrayList(csUsers.keySet());
+			LongLists.shuffle(users, getProject().getRandom());
+			LongListIterator iter = users.listIterator();
+			while (iter.hasNext()) {
+				final int idx = iter.nextIndex();
+				final long user = iter.nextLong();
+				final int profSize =idx % numProfiles;
+				csUsers.put(user, profSize);
+				logger.info("Partition {} - Cold start user {} with profile size = {}", n_partition, user,profSize);
+			}
+		}
 	}
 }
