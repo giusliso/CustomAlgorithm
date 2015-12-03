@@ -6,9 +6,6 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedList;
-import java.util.Map;
-import java.util.concurrent.TimeUnit;
-
 import javax.annotation.concurrent.NotThreadSafe;
 import javax.inject.Inject;
 import javax.inject.Provider;
@@ -23,7 +20,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.google.common.base.Stopwatch;
-
 
 import it.maivisto.utility.Config;
 import it.maivisto.utility.STS;
@@ -43,9 +39,10 @@ public class ItemContentMatrixModelBuilder implements Provider<ItemItemModel> {
 
 	private final ItemItemBuildContext context;
 	private Long2ObjectMap<ScoredItemAccumulator> rows;
-	private int nthreads=5;
-	private int threadCount=nthreads;
+	private int nthreads = 5;
+	private int threadCount = nthreads;
 	private HashMap<Long,String> icMap;
+
 	@Inject
 	public ItemContentMatrixModelBuilder(@Transient ItemItemBuildContext context) {
 		this.context = context;
@@ -64,43 +61,38 @@ public class ItemContentMatrixModelBuilder implements Provider<ItemItemModel> {
 		if(model==null) {
 			LongSortedSet allItems = context.getItems();
 			int nitems = allItems.size();
-			int sims=(nitems*(nitems-1))/2;
+			int sims = (nitems*(nitems-1))/2;
 
-			ArrayList<ItemContentThread> threads=new ArrayList();
-			//divido il dataset in intervalli e li asstegno ai threads
-			for(int z=0;z<nthreads;z++){
-				
-				threads.add(new ItemContentThread());
-			}
+			ArrayList<ItemContentThread> threads=new ArrayList<ItemContentThread>();
+			for(int z = 0; z < nthreads; z++)
+				try {
+					threads.add(new ItemContentThread());
+				} catch (Exception e) {
+					logger.error(e.getStackTrace().toString());
+				}
 
-			/*for(int i=1;i<=nitems-1;i++)
-				sims+=i; */
-			
+			int simsThread=sims/nthreads; // how many similarities a thread have to compute
 
-			int simsThread=sims/nthreads;
-
-
-			icMap = getItemsContentMap();
+			icMap = getItemsContentMap(); // read item content and store it in a map
 
 			logger.info("building item-content similarity model for {} items", nitems);
 			logger.info("item-content similarity model is symmetric");
 
 			rows = makeAccumulators(allItems);
 
-
 			try {
-
 				Stopwatch timer = Stopwatch.createStarted();
-				int ndone=1;
+
 				int countItems=0;
-				int currThread=0; //passa al succesivo thread quando finisce di daresimilarità al precedente
+				int currThread=0;
+
 				for(LongBidirectionalIterator itI = allItems.iterator(); itI.hasNext() ; ) {
 					Long i = itI.next();
-
 
 					for(LongBidirectionalIterator itJ = allItems.iterator(i); itJ.hasNext(); ) {
 						Long j = itJ.next();
 
+						// assign the same number of similarities to each thread (the last one can have more similarities)
 						if(countItems!=simsThread || currThread==nthreads-1){
 							threads.get(currThread).addSimilarity(new Similarity(i,j));
 							countItems++;
@@ -109,32 +101,20 @@ public class ItemContentMatrixModelBuilder implements Provider<ItemItemModel> {
 							countItems=0;
 							currThread++;
 						}
-
-
 					}
-					
-					
 
-					if (logger.isDebugEnabled() && ndone % 100 == 0) 
-						logger.info("computed {} of {} model rows ({}s/row)", 
-								ndone, nitems, 
-								String.format("%.3f", timer.elapsed(TimeUnit.MILLISECONDS) * 0.001 / ndone));
-
-					ndone++;
 				}
 				
+				// start computing similarities
 				for(ItemContentThread t:threads)
 					t.start();
 
-				//finalizzazione nel caso ci sono thread ancora in esecuzione, ne attende la fine
-				if(threadCount>0){
-					logger.debug("ending...");
-					while(threadCount!=0)
-						Thread.sleep(0);
-				}
+				// wait for the ending of all threads
+				while(threadCount!=0)
+					Thread.sleep(0);
 
 				timer.stop();
-				logger.info("built model for {} items in {}", ndone, timer);
+				logger.info("built model for {} items in {}", nitems, timer);
 
 				model = new ItemContentMatrixModel(finishRows(rows));    
 				serializer.serialize(Config.dirSerialModel,model,"ItemContentMatrixModel");
@@ -194,17 +174,19 @@ public class ItemContentMatrixModelBuilder implements Provider<ItemItemModel> {
 	class Similarity{
 		private long i;
 		private long j;
-		public Similarity(long i,long j){
+		
+		public Similarity(long i, long j){
 			this.i=i;
 			this.j=j;
 		}
-		public long get_i(){
+		
+		public long getI(){
 			return i;
 		}
-		public long get_j(){
+		
+		public long getJ(){
 			return j;
 		}
-
 	}
 
 
@@ -212,48 +194,34 @@ public class ItemContentMatrixModelBuilder implements Provider<ItemItemModel> {
 		private STS valueSim;
 		private LinkedList<Similarity> similarities;
 
-		
-		ItemContentThread(){
-			similarities=new LinkedList();
-			
-			try {
-				valueSim=new STS("lib/TextualSimilarity/config/config.properties","lib/TextualSimilarity/config/stacking.xml");
-			} catch (Exception e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
-			}
+		ItemContentThread() throws Exception {
+			similarities=new LinkedList<Similarity>();
+			valueSim=new STS("lib/TextualSimilarity/config/config.properties","lib/TextualSimilarity/config/stacking.xml");
 		}
+		
 		public void run() {
-			
+
 			for(Similarity sim:similarities){
-				
 				try {
-					long i=sim.get_i();
-					long j=sim.get_j();
-					
-					
+					long i=sim.getI();
+					long j=sim.getJ();
+
 					double simIJ = valueSim.computeSimilarities(icMap.get(i), icMap.get(j)).getFeatureSet().getValue("dsmCompSUM-ri");
 					rows.get(i).put(j, simIJ);
 					rows.get(j).put(i, simIJ);
 					logger.info("computed content similarity sim({},{}) = sim({},{}) = {}", i, j, j, i, simIJ);
-					
 					
 				} catch (Exception e) {
 					logger.error(e.getStackTrace().toString());
 				}
 			} 
 			threadCount--;
-			logger.info("finish thread-{}",similarities.size());
+			logger.info("finish thread - {}",similarities.size());
 		}
-
-
 
 		public void addSimilarity(Similarity similarity) {
-			// TODO Auto-generated method stub
-			
 			this.similarities.add(similarity);
 		}
-
 
 	}
 }
