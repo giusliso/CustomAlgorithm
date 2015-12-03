@@ -34,12 +34,15 @@ import org.grouplens.lenskit.ItemRecommender;
 import org.grouplens.lenskit.knn.item.model.SimilarityMatrixModel
 import org.grouplens.lenskit.eval.metrics.topn.PrecisionRecallTopNMetric
 import TopNMapMetric
+import it.maivisto.baselines.CoCoverageRec;
+import it.maivisto.baselines.PopularityRec
+import it.maivisto.baselines.RandomPopularityRec
+import it.maivisto.models.CoOccurrenceMatrixModel;
+import it.maivisto.models.CosineSimilarityMatrixModel
+import it.maivisto.qualifiers.CoOccurrenceModel
+import it.maivisto.qualifiers.CosineSimilarityModel;
+import it.maivisto.recommender.SeedRecommender;;
 
-import com.thesis.models.CoOccurrenceMatrixModel
-import com.thesis.qualifiers.CoOccurrenceModel;
-import com.thesis.qualifiers.CosineSimilarityModel;
-import com.thesis.recommender.SeedRecommender
-import com.thesis.evaluation.CrossfoldColdUserTask
 
 dataDir = "build/data"
 
@@ -52,7 +55,7 @@ trainTest("eval") {
 	componentCacheDirectory "build/componentCache"
 	cacheAllComponents true
 
-	def data = csvfile("${dataDir}/ml100k/u.data") {
+	def data = csvfile("${dataDir}/ml-100k/u.data") {
 		delimiter "\t"
 		domain {
 			minimum 1
@@ -63,15 +66,14 @@ trainTest("eval") {
 
 	def name = data.name
 
-	def d = new CrossfoldColdUserTask()
-	d.setName(name+"-all-eval")
+	def d = new CrossfoldColdUserTask(name+"-all-eval")
 	d.setProject(this.getProject())
 	d.setSource(data)
 	d.setOrder(new RandomOrder())
 	d.setPartitions(5)
-	d.setColdStartCasesPercentual(70)
-	d.setTrain("${name}-crossfold/train-all-eval.%d.csv")
-	d.setTest("${name}-crossfold/test-all-eval.%d.csv")
+	d.setColdStartCasesPercentual(50)
+	d.setTrain("$dataDir/${name}-crossfold/train-all-eval.%d.csv")
+	d.setTest("$dataDir/${name}-crossfold/test-all-eval.%d.csv")
 
 	dataset d.perform()
 
@@ -105,7 +107,25 @@ trainTest("eval") {
 		set IterationCount to 150
 	}
 
-
+	algorithm("Popularity") {
+		bind ItemRecommender to PopularityRec
+		bind ItemScorer to UserMeanItemScorer
+		bind (UserMeanBaseline, ItemScorer) to ItemMeanRatingItemScorer
+	}
+	
+	algorithm("RandomPopularity") {
+		bind ItemRecommender to RandomPopularityRec
+		bind ItemScorer to UserMeanItemScorer
+		bind (UserMeanBaseline, ItemScorer) to ItemMeanRatingItemScorer
+	}
+	
+	algorithm("CoCoverage") {
+		bind ItemRecommender to CoCoverageRec
+		bind ItemScorer to UserMeanItemScorer
+		bind (UserMeanBaseline, ItemScorer) to ItemMeanRatingItemScorer
+		bind (CoOccurrenceModel, ItemItemModel) to CoOccurrenceMatrixModel
+	}
+	
 	algorithm("SeedRec") {
 		bind ItemRecommender to SeedRecommender
 		bind ItemScorer to UserMeanItemScorer
@@ -113,7 +133,7 @@ trainTest("eval") {
 		set MeanDamping to 5.0d
 		set NeighborhoodSize to 20
 		bind (CoOccurrenceModel, ItemItemModel) to CoOccurrenceMatrixModel
-		bind (CosineSimilarityModel, ItemItemModel) to SimilarityMatrixModel
+		bind (CosineSimilarityModel, ItemItemModel) to CosineSimilarityMatrixModel
 		within (CosineSimilarityModel, ItemItemModel) {
 			bind VectorSimilarity to CosineVectorSimilarity
 		}
