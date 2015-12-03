@@ -83,7 +83,7 @@ public class PopularityRec extends AbstractItemRecommender {
 	 * Inner class that stores information about the popularity of an item.
 	 * It stores a couple of values < itemID , number of ratings >.
 	 */
-	class Popularity implements Comparable<Popularity> {
+	private class Popularity implements Comparable<Popularity> {
 		private final int popularity;
 		private final long item;
 

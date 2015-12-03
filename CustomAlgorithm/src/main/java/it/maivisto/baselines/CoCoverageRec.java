@@ -88,7 +88,7 @@ public class CoCoverageRec extends AbstractItemRecommender {
 	 * Inner class that stores information about the cocoverage of an item.
 	 * It stores a couple of values < itemID , cocoverage >.
 	 */
-	class CoCoverage implements Comparable<CoCoverage> {
+	private class CoCoverage implements Comparable<CoCoverage> {
 		private final double cocoverage;
 		private final long item;
 
