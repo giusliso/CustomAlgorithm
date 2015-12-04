@@ -196,7 +196,7 @@ public class ItemContentMatrixModelBuilder implements Provider<ItemItemModel> {
 
 		ItemContentThread() throws Exception {
 			similarities=new LinkedList<Similarity>();
-			valueSim=new STS("lib/TextualSimilarity/config/config.properties","lib/TextualSimilarity/config/stacking.xml");
+			valueSim=new STS(Config.dirConfigItemContent,Config.dirStackingItemContent);
 		}
 		
 		public void run() {

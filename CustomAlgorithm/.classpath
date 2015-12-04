@@ -42,6 +42,21 @@
 	<classpathentry kind="lib" path="lib/slf4j-api-1.7.6.jar"/>
 	<classpathentry kind="lib" path="lib/vectorz-0.41.2.jar"/>
 	<classpathentry kind="lib" path="lib/xz-1.5.jar"/>
-	<classpathentry kind="lib" path="lib/TextualSimilarity/tsvincente.jar"/>
+	<classpathentry kind="lib" path="lib/TextualSimilarity-pg-30112015.JAR"/>
+	<classpathentry kind="lib" path="lib/TextualSimilarity/lib/commons-configuration-1.9.jar"/>
+	<classpathentry kind="lib" path="lib/TextualSimilarity/lib/commons-lang-2.6.jar"/>
+	<classpathentry kind="lib" path="lib/TextualSimilarity/lib/commons-logging-1.1.1.jar"/>
+	<classpathentry kind="lib" path="lib/TextualSimilarity/lib/commons-math-2.2.jar"/>
+	<classpathentry kind="lib" path="lib/TextualSimilarity/lib/ESA.jar"/>
+	<classpathentry kind="lib" path="lib/TextualSimilarity/lib/joda-time.jar"/>
+	<classpathentry kind="lib" path="lib/TextualSimilarity/lib/jollyday.jar"/>
+	<classpathentry kind="lib" path="lib/TextualSimilarity/lib/junit-4.10.jar"/>
+	<classpathentry kind="lib" path="lib/TextualSimilarity/lib/jwnl.jar"/>
+	<classpathentry kind="lib" path="lib/TextualSimilarity/lib/lucene-core-2.3.2.jar"/>
+	<classpathentry kind="lib" path="lib/TextualSimilarity/lib/stanford-corenlp-1.3.4-models.jar"/>
+	<classpathentry kind="lib" path="lib/TextualSimilarity/lib/stanford-corenlp-1.3.4.jar"/>
+	<classpathentry kind="lib" path="lib/TextualSimilarity/lib/weka.jar"/>
+	<classpathentry kind="lib" path="lib/TextualSimilarity/lib/wordnetsim.jar"/>
+	<classpathentry kind="lib" path="lib/TextualSimilarity/lib/xom.jar"/>
 	<classpathentry kind="output" path="bin"/>
 </classpath>
