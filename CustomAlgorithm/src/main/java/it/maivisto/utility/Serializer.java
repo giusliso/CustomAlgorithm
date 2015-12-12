@@ -7,16 +7,23 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
+import java.nio.ByteBuffer;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.esotericsoftware.kryo.Kryo;
+import com.esotericsoftware.kryo.Registration;
+import com.esotericsoftware.kryo.io.Input;
+import com.esotericsoftware.kryo.io.Output;
+
 public class Serializer {
 
 	private static final Logger logger = LoggerFactory.getLogger(Serializer.class);
-	
+
 	/**
 	 * Serialize an object
+	 * @param <T>
 	 * @param dirPath directory in which serialize the object
 	 * @param obj object to serialize
 	 * @param filename name of the file
@@ -26,35 +33,45 @@ public class Serializer {
 		try {
 			File dir = new File(dirPath);
 			dir.mkdir();
-			ObjectOutputStream out = new ObjectOutputStream(new FileOutputStream(dir+filename+".dat"));
-			out.writeObject(obj);
-			out.close();
+			Kryo kryo = new Kryo();
+			kryo.register(obj.getClass());
+			Output output = new Output(new FileOutputStream(dir+File.separator+filename+".dat"));
+			kryo.writeObject(output, obj);
+			output.close();
+		
 			logger.info("Serialized "+filename);
 		} catch (IOException e) {
 			logger.error(e.getStackTrace().toString());
 		}
 	}
-	
+
 	/**
 	 * Deserialize an object.
+	 * @param <T>
+	 * @param <T>
+	 * @param <T>
 	 * @param dirPath directory containing the file
 	 * @param filename name of the file
 	 */
-	public Object deserialize(String dirPath, String filename){
+	public <T> Object deserialize(String dirPath, String filename,Class<T> cl){
 		logger.info("Deserializing "+filename+"...");
 		try {
-			ObjectInputStream in = new ObjectInputStream(new FileInputStream(dirPath+filename+".dat"));
-			Object m = in.readObject();
-			in.close();
+			Kryo kryo = new Kryo();
+			kryo.register(cl);
+			Input input = new Input(new FileInputStream(dirPath+filename+".dat"));
+			Object m=kryo.readObject(input, cl);
+			input.close();
 			logger.info("Deserialized "+filename);
 			return m;
-		} catch (FileNotFoundException e) {
+		} catch (Exception e) {
 			logger.error(e.getStackTrace().toString());
-		} catch (IOException e) {
-			logger.error(e.getStackTrace().toString());
-		} catch (ClassNotFoundException e) {
-			logger.error(e.getStackTrace().toString());
-		}
-		return null;
+			return null;
+		} 
+		
 	}
+
+	
 }
+
+
+
